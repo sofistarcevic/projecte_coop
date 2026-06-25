@@ -65,8 +65,13 @@ async function renderPatientsList() {
         llistaUl.innerHTML = '';
         const textCerca = document.getElementById('search-patient')?.value.toLowerCase().trim() || "";
         
-        // Determinar quina llista utilitzar
-        let llistaAFiltrar = (filtreActual === 'mine') ? elsMeusPacients : totsElsPacientsGlobals;
+        // Si estem en mode 'all', filtrem perquè NO surtin els pacients que JA són meus (així desapareixen en assignar)
+        let llistaAFiltrar = [];
+        if (filtreActual === 'mine') {
+            llistaAFiltrar = elsMeusPacients;
+        } else {
+            llistaAFiltrar = totsElsPacientsGlobals.filter(p => !elsMeusPacients.some(m => m.id === p.id));
+        }
 
         // Aplicar filtre de cerca si s'ha escrit alguna cosa
         if (textCerca !== "") {
@@ -87,15 +92,11 @@ async function renderPatientsList() {
             li.style.alignItems = "center";
             li.style.padding = "10px";
             
-            const jaEsMeu = elsMeusPacients.some(m => m.id === p.id);
-
             let htmlContent = `<div><strong>${p.name}</strong><br><small style="color:var(--text-muted); font-size:11px;">${p.id}</small></div>`;
             
-            // Botó ràpid d'assignació en la llista global
-            if (filtreActual === 'all' && !jaEsMeu) {
+            // Botó ràpid d'assignació en la llista global (en aquest punt cap d'ells és meu per l'exclusió de dalt)
+            if (filtreActual === 'all') {
                 htmlContent += `<button class="btn-success" onclick="assignarPacientExistent(event, '${p.id}')" style="padding:2px 6px; font-size:10px; white-space:nowrap;">+ Assignar</button>`;
-            } else if (jaEsMeu && filtreActual === 'all') {
-                htmlContent += `<span style="font-size:11px; color:#319795; font-weight:bold;">✓ El meu</span>`;
             }
 
             li.innerHTML = htmlContent;
@@ -154,16 +155,19 @@ async function assignarPacientExistent(event, patientId) {
         if (res.ok) {
             alert("Pacient assignat correctament a la teva llista de seguiment.");
             await renderPatientsList();
+            // Si el pacient actualment estava obert al panell d'edició, refresquem la botonera de la fitxa
+            if (idPacientSeleccionat === patientId) {
+                await seleccionarPacient(patientId);
+            }
         }
     } catch (e) { 
         console.error("Error associant pacient:", e); 
     }
 }
 
-// DESASSIGNAR PACIENT ACTUAL DE LA LLISTA D'AQUEST METGE
 async function desassignarPacientActual() {
     if (!idPacientSeleccionat) return;
-    if (!confirm("Segur que vols desassignar-te aquest pacient? Ja no el veuràs a la teva llista habitual (les dades clíniques i el seu historial no s'esborraran de l'hospital).")) return;
+    if (!confirm("Segur que vols desassignar-te aquest pacient? Les dades clíniques i el seu historial no s'esborraran de l'hospital.")) return;
     
     const user = getCurrentUser();
     try {
@@ -173,10 +177,10 @@ async function desassignarPacientActual() {
             body: JSON.stringify({ doctorId: user.id, patientId: idPacientSeleccionat })
         });
         if (res.ok) {
-            idPacientSeleccionat = null;
-            document.getElementById('history-container').classList.add('hidden');
-            document.getElementById('no-patient-selected').classList.remove('hidden');
+            // Decisió de disseny net: mantenim la fitxa oberta però canviem el botó a "Assignar"
+            alert("Pacient desassignat de la teva llista pròpia.");
             await renderPatientsList();
+            await seleccionarPacient(idPacientSeleccionat);
         }
     } catch (e) { console.error(e); }
 }
@@ -213,6 +217,17 @@ async function seleccionarPacient(idPacient) {
         document.getElementById('edit-pat-gender').value = pacient.gender;
         document.getElementById('edit-pat-phone').value = pacient.phone || '';
         document.getElementById('edit-pat-email').value = pacient.email || '';
+
+        // --- DINAMISME DEL BOTÓ DE LA FITXA (Mireu si és meu o no) ---
+        const botoContenidor = document.getElementById('action-patient-button-container');
+        if (botoContenidor) {
+            const esMeu = elsMeusPacients.some(m => m.id === idPacient);
+            if (esMeu) {
+                botoContenidor.innerHTML = `<button type="button" id="btn-unassign-patient" class="btn-danger" onclick="desassignarPacientActual()" style="padding: 6px 12px; font-size: 13px; background:#e53e3e;">🚫 Desassignar Pacient</button>`;
+            } else {
+                botoContenidor.innerHTML = `<button type="button" id="btn-assign-patient" class="btn-success" onclick="assignarPacientExistent(null, '${pacient.id}')" style="padding: 6px 12px; font-size: 13px; background:var(--success-color);">➕ Assignar a la meva llista</button>`;
+            }
+        }
 
         // Obtenir el timeline d'aquest pacient
         const resTimeline = await fetch(`/api/timeline/${idPacient}`);
@@ -378,7 +393,7 @@ async function renderAppointmentsTable() {
         const appointments = await response.json();
 
         if (appointments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#a0aec0;">No hi ha cap cita agendada a SQLite.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#a0aec0;">No hi ha cap cita agendada.</td></tr>';
             return;
         }
 

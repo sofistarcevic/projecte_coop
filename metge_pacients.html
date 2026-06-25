@@ -35,8 +35,8 @@
                             <input type="text" id="new-patient-name" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
                         </div>
                         <div class="form-group" style="margin-bottom: 8px;">
-                            <label style="font-size: 11px; display:block; margin-bottom:2px;">Document Identitat (DNI/NIE):</label>
-                            <input type="text" id="new-patient-id" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                            <label style="font-size: 11px; display:block; margin-bottom:2px;">Document d'dentitat:</label>
+                            <input type="text" id="new-patient-id" style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
                         </div>
                         <div class="form-group" style="margin-bottom: 8px;">
                             <label style="font-size: 11px; display:block; margin-bottom:2px;">Data Naixement:</label>
@@ -89,7 +89,7 @@
                             <input type="text" id="edit-pat-name" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
                         </div>
                         <div class="form-group" style="margin: 0;">
-                            <label style="font-size: 11px; font-weight: bold;">Document Identitat (DNI):</label>
+                            <label style="font-size: 11px; font-weight: bold;">Document d'dentitat:</label>
                             <input type="text" id="edit-pat-id-display" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
                         </div>
                         <div class="form-group" style="margin: 0;">
@@ -114,7 +114,7 @@
                         </div>
                         
                         <div style="grid-column: span 3; display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                            <button type="button" id="btn-unassign-patient" class="btn-danger" onclick="desassignarPacientActual()" style="padding: 6px 12px; font-size: 13px; background:#e53e3e;">🚫 Desassignar Pacient</button>
+                            <div id="action-patient-button-container"></div>
                             <button type="submit" class="btn-primary" style="padding: 6px 20px; font-size: 13px; width:auto;">Actualitzar Dades</button>
                         </div>
                     </form>
