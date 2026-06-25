@@ -498,6 +498,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function tancarFitxaPacient() {
         document.getElementById('capsalera-pacients-normal').querySelector('h3').textContent = 'Pacients registrats';
         document.getElementById('btn-obrir-pacient').style.display = '';
+        document.getElementById('admin-patient-doctors-panel').classList.add('hidden');
         carregarPacientsRegistrats();
     }
 
@@ -566,4 +567,278 @@ document.addEventListener("DOMContentLoaded", function() {
     window.obrirFormulariCrearPacientAdmin = function() {
         document.getElementById('btn-obrir-pacient').click();
     };
+
+    // =========================================================================
+    // SECCIÓ DE CONFIGURACIÓ
+    // =========================================================================
+
+    // --- Informació de la Clínica ---
+    async function carregarConfigClinica() {
+        try {
+            const res = await fetch('/api/config');
+            if (!res.ok) return;
+            const config = await res.json();
+            document.getElementById('cfg-clinic-name').value  = config.clinicName  || '';
+            document.getElementById('cfg-clinic-phone').value = config.clinicPhone || '';
+            document.getElementById('cfg-clinic-addr').value  = config.clinicAddr  || '';
+            document.getElementById('cfg-clinic-email').value = config.clinicEmail || '';
+        } catch (err) { console.error("Error carregant config:", err); }
+    }
+
+    const btnDesarClinica = document.getElementById('btn-desar-clinica');
+    if (btnDesarClinica) {
+        btnDesarClinica.addEventListener('click', async function() {
+            const dades = {
+                clinicName:  document.getElementById('cfg-clinic-name').value.trim(),
+                clinicPhone: document.getElementById('cfg-clinic-phone').value.trim(),
+                clinicAddr:  document.getElementById('cfg-clinic-addr').value.trim(),
+                clinicEmail: document.getElementById('cfg-clinic-email').value.trim()
+            };
+            if (!dades.clinicName) { alert("El nom de la clínica és obligatori."); return; }
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dades)
+                });
+                if (res.ok) {
+                    const msg = document.getElementById('cfg-clinica-msg');
+                    msg.textContent = "✓ Canvis desats correctament.";
+                    msg.style.color = 'var(--success-color)';
+                    setTimeout(() => msg.textContent = '', 3000);
+                } else {
+                    alert("Error en desar la configuració.");
+                }
+            } catch (err) { alert("Error de xarxa."); }
+        });
+        carregarConfigClinica();
+    }
+
+    // --- Especialitats Mèdiques ---
+    let llistaEspecialitats = [];
+
+    async function carregarEspecialitats() {
+        try {
+            const res = await fetch('/api/specialties');
+            if (!res.ok) return;
+            llistaEspecialitats = await res.json();
+            pintarEspecialitats();
+        } catch (err) { console.error("Error carregant especialitats:", err); }
+    }
+
+    function pintarEspecialitats() {
+        const contenidor = document.getElementById('llista-especialitats');
+        if (!contenidor) return;
+        if (llistaEspecialitats.length === 0) {
+            contenidor.innerHTML = '<p style="color:#a0aec0;font-size:13px;text-align:center;padding:10px;">Cap especialitat afegida.</p>';
+            return;
+        }
+        contenidor.innerHTML = llistaEspecialitats.map(esp => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid #e2e8f0;">
+                <span style="font-size:14px;">🩺 ${esp.name}</span>
+                <button onclick="eliminarEspecialitat(${esp.id})" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:18px;line-height:1;" title="Eliminar">×</button>
+            </div>
+        `).join('');
+    }
+
+    const btnAfegirEsp = document.getElementById('btn-afegir-especialitat');
+    if (btnAfegirEsp) {
+        btnAfegirEsp.addEventListener('click', async function() {
+            const input = document.getElementById('nova-especialitat');
+            const nom = input.value.trim();
+            if (!nom) return;
+            try {
+                const res = await fetch('/api/specialties', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: nom })
+                });
+                if (res.ok) {
+                    input.value = '';
+                    carregarEspecialitats();
+                } else {
+                    const err = await res.json();
+                    alert(err.error || "Error en afegir l'especialitat.");
+                }
+            } catch (e) { alert("Error de xarxa."); }
+        });
+        // Permet prémer Enter per afegir
+        document.getElementById('nova-especialitat').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); btnAfegirEsp.click(); }
+        });
+        carregarEspecialitats();
+    }
+
+    window.eliminarEspecialitat = async function(id) {
+        if (!confirm("Eliminar aquesta especialitat?")) return;
+        try {
+            const res = await fetch(`/api/specialties/${id}`, { method: 'DELETE' });
+            if (res.ok) carregarEspecialitats();
+            else alert("Error en eliminar l'especialitat.");
+        } catch (e) { alert("Error de xarxa."); }
+    };
+
+    // --- Seguretat i Administradors ---
+    let llistaAdmins = [];
+
+    async function carregarAdmins() {
+        try {
+            const res = await fetch('/api/admins');
+            if (!res.ok) return;
+            llistaAdmins = await res.json();
+            pintarAdmins();
+        } catch (err) { console.error("Error carregant admins:", err); }
+    }
+
+    function pintarAdmins() {
+        const contenidor = document.getElementById('llista-admins');
+        if (!contenidor) return;
+
+        // Sempre mostrem el compte mestre fix
+        let html = `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;">
+                <span>👑 <strong>admin</strong> <span style="color:#a0aec0;font-size:12px;">(Mestre)</span></span>
+                <span style="font-size:11px;background:#e2e8f0;padding:2px 8px;border-radius:4px;font-weight:600;">SISTEMA</span>
+            </div>
+        `;
+
+        llistaAdmins.forEach(adm => {
+            html += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;">
+                    <span>🛡️ <strong>${adm.username}</strong> <span style="color:#a0aec0;font-size:12px;">${adm.name ? '— ' + adm.name : ''}</span></span>
+                    <button onclick="eliminarAdmin(${adm.id})" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:18px;line-height:1;" title="Eliminar">×</button>
+                </div>
+            `;
+        });
+
+        contenidor.innerHTML = html;
+    }
+
+    const formNouAdmin = document.getElementById('form-nou-admin');
+    if (formNouAdmin) {
+        formNouAdmin.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const dades = {
+                name:     document.getElementById('adm-name').value.trim(),
+                username: document.getElementById('adm-username').value.trim(),
+                password: document.getElementById('adm-password').value
+            };
+            if (!dades.username || !dades.password) { alert("Usuari i contrasenya són obligatoris."); return; }
+            try {
+                const res = await fetch('/api/admins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dades)
+                });
+                const resultat = await res.json();
+                if (res.ok) {
+                    formNouAdmin.reset();
+                    document.getElementById('bloc-form-nou-admin').classList.add('hidden');
+                    document.getElementById('btn-mostrar-form-admin').style.display = '';
+                    carregarAdmins();
+                } else {
+                    alert("Error: " + (resultat.error || "No s'ha pogut crear l'administrador."));
+                }
+            } catch (err) { alert("Error de xarxa."); }
+        });
+        carregarAdmins();
+    }
+
+    const btnMostrarFormAdmin = document.getElementById('btn-mostrar-form-admin');
+    if (btnMostrarFormAdmin) {
+        btnMostrarFormAdmin.addEventListener('click', function() {
+            document.getElementById('bloc-form-nou-admin').classList.remove('hidden');
+            btnMostrarFormAdmin.style.display = 'none';
+        });
+    }
+    const btnCancelAdmin = document.getElementById('btn-cancel-admin');
+    if (btnCancelAdmin) {
+        btnCancelAdmin.addEventListener('click', function() {
+            document.getElementById('bloc-form-nou-admin').classList.add('hidden');
+            document.getElementById('btn-mostrar-form-admin').style.display = '';
+            document.getElementById('form-nou-admin').reset();
+        });
+    }
+
+    window.eliminarAdmin = async function(id) {
+        if (!confirm("Eliminar aquest administrador?")) return;
+        try {
+            const res = await fetch(`/api/admins/${id}`, { method: 'DELETE' });
+            if (res.ok) carregarAdmins();
+            else alert("Error en eliminar l'administrador.");
+        } catch (e) { alert("Error de xarxa."); }
+    };
+
+    // --- Zona de Manteniment Crític ---
+    const btnEliminarMetge = document.getElementById('btn-eliminar-metge-def');
+    if (btnEliminarMetge) {
+        btnEliminarMetge.addEventListener('click', async function() {
+            const id  = document.getElementById('crit-doc-id').value.trim();
+            const nom = document.getElementById('crit-doc-nom').value.trim();
+            if (!id || !nom) { alert("Has d'introduir l'ID i el nom complet del metge."); return; }
+            if (!confirm(`⚠️ Estàs a punt d'eliminar DEFINITIVAMENT el metge "${nom}" (${id}).\n\nAquesta acció és IRREVERSIBLE. Continuar?`)) return;
+            try {
+                const res = await fetch(`/api/doctors/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert("Metge eliminat correctament.");
+                    document.getElementById('crit-doc-id').value = '';
+                    document.getElementById('crit-doc-nom').value = '';
+                    carregarMetgesRegistrats();
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + (err.error || "No s'ha pogut eliminar el metge."));
+                }
+            } catch (e) { alert("Error de xarxa."); }
+        });
+    }
+
+    const btnEliminarPacient = document.getElementById('btn-eliminar-pacient-def');
+    if (btnEliminarPacient) {
+        btnEliminarPacient.addEventListener('click', async function() {
+            const id  = document.getElementById('crit-pat-id').value.trim();
+            const nom = document.getElementById('crit-pat-nom').value.trim();
+            if (!id || !nom) { alert("Has d'introduir l'ID i el nom complet del pacient."); return; }
+            if (!confirm(`⚠️ Estàs a punt d'eliminar DEFINITIVAMENT el pacient "${nom}" (${id}).\n\nAquesta acció és IRREVERSIBLE. Continuar?`)) return;
+            try {
+                const res = await fetch(`/api/patients/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert("Pacient eliminat correctament.");
+                    document.getElementById('crit-pat-id').value = '';
+                    document.getElementById('crit-pat-nom').value = '';
+                    carregarPacientsRegistrats();
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + (err.error || "No s'ha pogut eliminar el pacient."));
+                }
+            } catch (e) { alert("Error de xarxa."); }
+        });
+    }
+
+    const btnBaixarBackup = document.getElementById('btn-baixar-backup');
+    if (btnBaixarBackup) {
+        btnBaixarBackup.addEventListener('click', function() {
+            window.location.href = '/api/backup';
+        });
+    }
+
+    const btnResetTotal = document.getElementById('btn-reset-total');
+    if (btnResetTotal) {
+        btnResetTotal.addEventListener('click', async function() {
+            const primera = confirm("⚠️ ATENCIÓ: Estàs a punt d'eliminar TOTA la base de dades (hospital.db).\n\nAixò esborrarà TOTS els metges, pacients i configuració de forma PERMANENT.\n\n¿Estàs segur?");
+            if (!primera) return;
+            const segona = confirm("🔴 CONFIRMACIÓ FINAL\n\nEscriu 'ELIMINAR' al botó d'acceptar per confirmar.\n\nAquesta acció NO es pot desfer. ¿Continuar igualment?");
+            if (!segona) return;
+            try {
+                const res = await fetch('/api/reset', { method: 'DELETE' });
+                if (res.ok) {
+                    alert("Base de dades eliminada. El servidor s'ha de reiniciar manualment.");
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'index.html';
+                } else {
+                    alert("Error en el reset. Comprova el servidor.");
+                }
+            } catch (e) { alert("Error de xarxa."); }
+        });
+    }
+
 });

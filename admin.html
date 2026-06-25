@@ -311,6 +311,14 @@
                     <div id="vista-dinamica-pacients" class="quadre-contingut">
                         <p style="color: #718096;">Carregant pacients del sistema...</p>
                     </div>
+
+                    <div id="admin-patient-doctors-panel" class="hidden" style="margin-top: 15px; padding: 12px; background: #fff; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <p style="font-size: 12px; font-weight: 700; color: var(--primary-color); margin-bottom: 5px;">Core-Team 0: 🩺 Metges Assignats a aquest Pacient:</p>
+                        <ul id="admin-patient-doctors-list" style="padding-left: 15px; font-size: 13px; color: var(--text-color);">
+                            <li style="list-style:none; color:var(--text-muted); font-style:italic;">Cap metge assignat encara</li>
+                        </ul>
+                    </div>
+                    
                 </div>
 
             </div>
@@ -322,8 +330,141 @@
 
 
         <section id="seccio-configuració" class="seccio-admin hidden">
-            <h2>Configuració</h2>
-            <p>Contingut...</p>
+            <h2 style="margin-bottom:25px;">🔧 Panell de Configuració del Sistema</h2>
+
+            <!-- FILA SUPERIOR: Clínica + Especialitats -->
+            <div class="contenidor-quadres" style="margin-bottom: 0;">
+
+                <!-- Informació de la Clínica -->
+                <div class="quadre-registres">
+                    <div class="quadre-capçalera">
+                        <h3>🏢 Informació de la Clínica</h3>
+                    </div>
+                    <div class="quadre-contingut">
+                        <div style="display:flex;gap:12px;margin-bottom:12px;">
+                            <div class="form-group" style="flex:1;margin-bottom:0;">
+                                <label>Nom de la Clínica / Hospital:</label>
+                                <input type="text" id="cfg-clinic-name">
+                            </div>
+                            <div class="form-group" style="flex:1;margin-bottom:0;">
+                                <label>Telèfon de Contacte:</label>
+                                <input type="text" id="cfg-clinic-phone">
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:12px;margin-bottom:18px;">
+                            <div class="form-group" style="flex:1;margin-bottom:0;">
+                                <label>Adreça Física Completa:</label>
+                                <input type="text" id="cfg-clinic-addr">
+                            </div>
+                            <div class="form-group" style="flex:1;margin-bottom:0;">
+                                <label>Correu Electrònic de Contacte:</label>
+                                <input type="email" id="cfg-clinic-email">
+                            </div>
+                        </div>
+                        <button id="btn-desar-clinica" class="btn-success" style="width:100%;padding:11px;font-size:14px;">Desar Canvis del Centre</button>
+                        <p id="cfg-clinica-msg" style="margin-top:8px;font-size:13px;text-align:center;min-height:18px;"></p>
+                    </div>
+                </div>
+
+                <!-- Especialitats Mèdiques -->
+                <div class="quadre-registres">
+                    <div class="quadre-capçalera">
+                        <h3>🗂️ Especialitats Mèdiques</h3>
+                    </div>
+                    <div class="quadre-contingut">
+                        <div id="llista-especialitats" style="min-height:120px;max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:12px;">
+                            <p style="color:#a0aec0;font-size:13px;text-align:center;padding:10px;">Carregant...</p>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <input type="text" id="nova-especialitat" placeholder="Nova especialitat..." style="flex:1;">
+                            <button id="btn-afegir-especialitat" class="btn-primary" style="width:auto;padding:10px 16px;font-size:13px;white-space:nowrap;">+ Afegir</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- FILA INFERIOR: Seguretat + Zona Crítica -->
+            <div class="contenidor-quadres" style="margin-top:25px;">
+
+                <!-- Seguretat i Administradors -->
+                <div class="quadre-registres">
+                    <div class="quadre-capçalera">
+                        <h3>🛡️ Seguretat i Administradors</h3>
+                    </div>
+                    <div class="quadre-contingut">
+                        <p style="font-size:13px;color:#718096;margin-bottom:14px;">Gestió d'usuaris amb permisos totals per modificar dades estructurals del programari corporatiu.</p>
+                        <div id="llista-admins">
+                            <p style="color:#a0aec0;font-size:13px;">Carregant...</p>
+                        </div>
+
+                        <div id="bloc-form-nou-admin" class="hidden" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;margin-top:12px;">
+                            <form id="form-nou-admin">
+                                <div class="form-group" style="margin-bottom:10px;">
+                                    <label>Nom complet (opcional):</label>
+                                    <input type="text" id="adm-name" placeholder="Ex: Joan García">
+                                </div>
+                                <div style="display:flex;gap:12px;margin-bottom:12px;">
+                                    <div class="form-group" style="flex:1;margin-bottom:0;">
+                                        <label>Nom d'usuari:</label>
+                                        <input type="text" id="adm-username" required>
+                                    </div>
+                                    <div class="form-group" style="flex:1;margin-bottom:0;">
+                                        <label>Contrasenya:</label>
+                                        <input type="password" id="adm-password" required>
+                                    </div>
+                                </div>
+                                <div style="display:flex;gap:8px;">
+                                    <button type="submit" class="btn-success" style="flex:1;padding:9px;">Crear Administrador</button>
+                                    <button type="button" id="btn-cancel-admin" class="btn-danger" style="padding:9px 14px;">Cancel·lar</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <button id="btn-mostrar-form-admin" class="btn-primary" style="width:100%;margin-top:14px;padding:10px;font-size:13px;">+ Afegir Usuari Administrador</button>
+                    </div>
+                </div>
+
+                <!-- Zona de Manteniment Crític -->
+                <div class="quadre-registres" style="border-color:#feb2b2 !important;background:#fff5f5 !important;">
+                    <div class="quadre-capçalera" style="border-bottom-color:#fed7d7;">
+                        <h3 style="color:#c53030;">⚠️ Zona de Manteniment Crític i Risc Extrem</h3>
+                    </div>
+                    <div class="quadre-contingut">
+                        <p style="font-size:13px;color:#718096;margin-bottom:16px;">Aquestes accions afecten directament la integritat del fitxer binari SQLite corporatiu de forma permanent.</p>
+
+                        <div style="background:white;border:1px solid #fed7d7;border-radius:6px;padding:14px;margin-bottom:12px;">
+                            <p style="font-size:13px;font-weight:700;color:#c53030;margin-bottom:10px;">Destrucció de Fitxes de Metges</p>
+                            <div style="display:flex;gap:8px;margin-bottom:10px;">
+                                <input type="text" id="crit-doc-id" placeholder="ID (Ex: MED-26-0001)" style="flex:1;">
+                                <input type="text" id="crit-doc-nom" placeholder="Nom complet" style="flex:1;">
+                            </div>
+                            <button id="btn-eliminar-metge-def" style="width:100%;padding:9px;background:#e53e3e;color:white;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">Eliminar Metge Definitivament</button>
+                        </div>
+
+                        <div style="background:white;border:1px solid #fed7d7;border-radius:6px;padding:14px;margin-bottom:12px;">
+                            <p style="font-size:13px;font-weight:700;color:#c53030;margin-bottom:10px;">Destrucció de Fitxes de Pacients</p>
+                            <div style="display:flex;gap:8px;margin-bottom:10px;">
+                                <input type="text" id="crit-pat-id" placeholder="ID (Ex: PAC-26-0001)" style="flex:1;">
+                                <input type="text" id="crit-pat-nom" placeholder="Nom complet" style="flex:1;">
+                            </div>
+                            <button id="btn-eliminar-pacient-def" style="width:100%;padding:9px;background:#e53e3e;color:white;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">Eliminar Pacient Definitivament</button>
+                        </div>
+
+                        <div style="display:flex;gap:10px;">
+                            <div style="flex:1;">
+                                <p style="font-size:12px;font-weight:700;color:#2d3748;margin-bottom:6px;">Resguard de Dades</p>
+                                <button id="btn-baixar-backup" class="btn-success" style="width:100%;padding:9px;font-size:13px;">💾 Baixar backup</button>
+                            </div>
+                            <div style="flex:1;">
+                                <p style="font-size:12px;font-weight:700;color:#c53030;margin-bottom:6px;">Reinici de Fàbrica</p>
+                                <button id="btn-reset-total" style="width:100%;padding:9px;background:#c53030;color:white;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">🔥 Reset Total</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </section>
     </main>
 

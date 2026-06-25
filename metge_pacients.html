@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestió de Pacients</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1 id="doctor-welcome">Dr.</h1>
+            <p id="doctor-specialty-title" class="subtitle"></p>
+        </div>
+        <button class="btn-logout" onclick="logout()">Tancar Sessió</button>
+    </header>
+
+    <nav class="tab-menu">
+        <a href="metge_pacients.html" class="tab-btn active">Gestió de Pacients</a>
+        <a href="metge_cites.html" class="tab-btn">Agenda de Cites</a>
+    </nav>
+
+    <main class="doctor-layout">
+        <div class="side-panel">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0;">Els Meus Pacients</h3>
+                    <button type="button" class="btn-primary" id="toggle-patient-btn" onclick="toggleFormulariPacient()" style="padding: 3px 0; font-size: 11px; width: 75px; text-align: center; white-space: nowrap; flex-shrink: 0;">+ Pacient</button>
+                </div>
+
+                <div id="dropdown-patient-form" class="hidden" style="background: #f7fafc; padding: 12px; border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 15px;">
+                    <h4 style="margin-top: 0; margin-bottom: 10px; color: var(--primary-color); font-size: 14px;">Nou Registre</h4>
+                    <form id="create-patient-form">
+                        <div class="form-group" style="margin-bottom: 8px;">
+                            <label style="font-size: 11px; display:block; margin-bottom:2px;">Nom Complet:</label>
+                            <input type="text" id="new-patient-name" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 8px;">
+                            <label style="font-size: 11px; display:block; margin-bottom:2px;">Document Identitat (DNI/NIE):</label>
+                            <input type="text" id="new-patient-id" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 8px;">
+                            <label style="font-size: 11px; display:block; margin-bottom:2px;">Data Naixement:</label>
+                            <input type="date" id="new-patient-birth" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label style="font-size: 11px; display:block; margin-bottom:2px;">Gènere:</label>
+                            <select id="new-patient-gender" style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                                <option value="Masculí">Masculí</option>
+                                <option value="Femení">Femení</option>
+                                <option value="Altres">Altres</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-success" style="width: 100%; padding: 6px; font-size: 13px;">Registrar</button>
+                    </form>
+                </div>
+
+                <input type="text" id="search-patient" placeholder="🔍 Buscar pacient..." style="width: 100%; padding: 6px 10px; margin-bottom: 5px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px;">
+                
+                <div style="display:flex; gap: 5px; margin-bottom: 10px;">
+                    <button id="btn-filter-mine" class="btn-primary" onclick="setFiltrePacients('mine')" style="flex:1; padding:4px; font-size:11px;">Els meus</button>
+                    <button id="btn-filter-all" class="btn-secondary" onclick="setFiltrePacients('all')" style="flex:1; padding:4px; font-size:11px; background:#e2e8f0; color:#2d3748; border:none; border-radius:4px; cursor:pointer;">Tots el centre</button>
+                </div>
+
+                <ul id="patients-list" class="list-selectable" style="max-height: 400px; overflow-y: auto; padding-left: 0;">
+                </ul>
+            </div>
+        </div>
+
+        <div class="main-panel card">
+            <div id="no-patient-selected" style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+                <span style="font-size: 40px;">👤</span>
+                <p style="margin-top: 10px; font-size: 15px;">Selecciona un pacient de la llista esquerra per gestionar el seu historial clínic.</p>
+            </div>
+
+            <div id="history-container" class="hidden">
+                <div style="background: #edf2f7; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                    <h5 style="margin-top: 0; margin-bottom: 5px; color: #2d3748; font-size: 16px;">
+                        Fitxa de: <span id="pat-name" style="font-weight: bold; color: var(--primary-color);">—</span>
+                    </h5>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                        Identificació: <span id="pat-id" style="font-family: monospace; font-weight: bold;">—</span> | 
+                        Edat: <span id="pat-age">—</span> | 
+                        Gènere: <span id="pat-gender">—</span>
+                    </p>
+                    
+                    <form id="edit-contact-form" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: bold;">Nom Complet:</label>
+                            <input type="text" id="edit-pat-name" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: bold;">Document Identitat (DNI):</label>
+                            <input type="text" id="edit-pat-id-display" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: bold;">Data Naixement:</label>
+                            <input type="date" id="edit-pat-birth" required style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: bold;">Gènere:</label>
+                            <select id="edit-pat-gender" style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                                <option value="Masculí">Masculí</option>
+                                <option value="Femení">Femení</option>
+                                <option value="Altres">Altres</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: bold;">Telèfon:</label>
+                            <input type="text" id="edit-pat-phone" style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group" style="grid-column: span 1; margin: 0;">
+                            <label style="font-size: 11px; font-weight: bold;">Correu Electrònic:</label>
+                            <input type="text" id="edit-pat-email" style="width:100%; padding: 4px 8px; border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        
+                        <div style="grid-column: span 3; display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                            <button type="button" id="btn-unassign-patient" class="btn-danger" onclick="desassignarPacientActual()" style="padding: 6px 12px; font-size: 13px; background:#e53e3e;">🚫 Desassignar Pacient</button>
+                            <button type="submit" class="btn-primary" style="padding: 6px 20px; font-size: 13px; width:auto;">Actualitzar Dades</button>
+                        </div>
+                    </form>
+                </div>
+
+                <h5 style="margin-bottom: 8px; font-size: 14px;">Afegir Nova Consulta Mèdica</h5>
+                <form id="add-entry-form" style="margin-bottom: 20px;">
+                    <div class="form-group">
+                        <textarea id="history-text" rows="3" placeholder="Escriu el diagnòstic d'avui, símptomes, tractament prescrit o medicació..." required style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:4px; font-family:inherit; font-size:13px;"></textarea>
+                    </div>
+                    <button type="submit" class="btn-success" style="margin-top: 5px;">Guardar Consulta Clínic</button>
+                </form>
+                
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+                
+                <h5 style="margin-bottom: 10px; font-size: 14px;">Evolució Cronològica</h5>
+                <div id="history-timeline"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="db.js"></script>
+    <script src="metge.js"></script>
+</body>
+</html>

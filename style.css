@@ -195,3 +195,99 @@ tr:hover td {
     font-size: 13px;
     font-weight: 500;
 }
+
+/* =========================================================================
+   ESTRUCTURA DE LES PÀGINES DEL METGE (LAYOUT)
+   ========================================================================= */
+header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.subtitle {
+    font-size: 13px;
+    color: #e2e8f0;
+}
+.btn-logout {
+    background-color: var(--error-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.tab-menu {
+    display: flex;
+    background: var(--color-fons-barra);
+    border-bottom: 1px solid var(--border-color);
+}
+.tab-btn {
+    padding: 12px 20px;
+    text-decoration: none;
+    color: var(--text-color);
+    font-weight: 600;
+}
+.tab-btn.active {
+    border-bottom: 3px solid var(--primary-color);
+    color: var(--primary-color);
+}
+.doctor-layout {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+}
+.side-panel {
+    width: 300px;
+    flex-shrink: 0;
+}
+.main-panel {
+    flex-grow: 1;
+}
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.list-selectable {
+    list-style: none;
+    margin-top: 10px;
+}
+.list-selectable li {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.list-selectable li:hover {
+    background: #edf2f7;
+}
+
+/* TIMELINE (HISTORIAL CLÍNIC) */
+.timeline-item {
+    background: #f7fafc;
+    border-left: 4px solid var(--primary-color);
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 0 4px 4px 0;
+}
+.timeline-item.cita {
+    border-left-color: var(--success-color);
+}
+.timeline-item.cita-anulada {
+    border-left-color: var(--error-color);
+    background: #fff5f5;
+}
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+.timeline-date {
+    color: var(--text-muted);
+}
