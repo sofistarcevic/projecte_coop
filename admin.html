@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panell Administrador</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-header { /*Barra superior*/
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .admin-header h1 {  /*Títol*/
+            font-size: 23px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .btn-logout {   /*Botó logout*/
+            background-color: var(--error-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: background-color 0.2s;
+        }
+
+        /*Pestanyes*/
+        .nav-tabs {
+            display: flex;
+            background-color: #edf2f7; 
+            padding: 0px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .tab-btn {
+            padding: 14px 28px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #000000dc;
+            font-size: 14px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.15s ease;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab-btn:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 35%;
+            height: 30%;
+            width: 1px;
+            background-color: #cbd5e0;
+        }
+        .tab-btn:hover:not(.active) {
+            color: #2d3748;
+        }
+        .tab-btn.active {   /*Pestanya activa*/
+            color: var(--primary-color);
+            font-weight: 700;
+            border-bottom: 3px solid var(--primary-color);
+        }
+        .tab-btn.active::after, /*Amaguem línia divisòria vertical que queda al costat del botó actiu*/
+        .tab-btn.active + .tab-btn::after {
+            background-color: transparent !important;
+        }
+        .seccio-admin { /*Contenidor principal*/
+            padding: 30px;
+            background-color: white; 
+            min-height: 400px;
+        }
+        .hidden {
+            display: none !important;
+        }
+
+        /*Estils quadres*/
+        .contenidor-quadres {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            border-spacing: 25px 0px;
+            margin-left: -25px;
+            margin-top: 15px;
+        }
+        .quadre-registres {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            background-color: #ffffff !important; 
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 8px !important;
+            padding: 20px !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+        }
+
+        /* Adaptabilitat total per a pantalles de mòbil o tauletes */
+        @media (max-width: 992px) {
+            .contenidor-quadres {
+                display: block;
+                border-spacing: 0;
+                margin-left: 0;
+            }
+            .quadre-registres {
+                display: block;
+                width: 100%;
+                margin-bottom: 25px;
+            }
+        }
+        .quadre-capçalera {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #edf2f7;
+            padding-bottom: 12px;
+        }
+        .quadre-capçalera h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .btn-crear-petit {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            transition: opacity 0.2s;
+        }
+        .btn-crear-petit:hover {
+            opacity: 0.9;
+        }
+        .quadre-contingut {
+            color: #4a5568;
+            font-size: 14px;
+        }
+        /* Files de taula clicables per obrir fitxes */
+        tr.clicable-row {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        tr.clicable-row:hover {
+            background-color: #f0fff4 !important;
+        }
+
+        /* Targeta d'apartats de fitxa */
+        .apartat-fitxa {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .apartat-fitxa h4 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #2b6cb0;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="admin-header">
+        <div>
+            <h1>Panell d'Administració</h1>
+        </div>
+        <button class="btn-logout" id="logout-btn">➜] Tancar Sessió</button>
+    </header>
+
+    <nav class="nav-tabs">
+        <button class="tab-btn active" id="btn-dashboard">📊 Dashboard</button>
+        <button class="tab-btn" id="btn-metges-pacients">👥 Gestió de Metges i Pacients</button>
+        <button class="tab-btn" id="btn-configuració">⚙️ Configuració</button>
+    </nav>
+
+    <main>
+        <section id="seccio-dashboard" class="seccio-admin">
+            <h2>Dashboard</h2>
+            <p>Contingut ...</p>
+        </section>
+
+
+        
+
+        <section id="seccio-metges-pacients" class="seccio-admin hidden">
+            <div class="contenidor-quadres">
+                
+                <div class="quadre-registres" style="flex: 1.3;">
+                    
+                    <div id="capsalera-metges-normal" class="quadre-capçalera">
+                        <h3>Metges registrats</h3>
+                        <button class="btn-crear-petit" id="btn-obrir-metge" onclick="obrirFormulariCrearMetge()">+ Crear Metge</button>
+                    </div>
+
+                    <div id="capsalera-metges-creacio" class="quadre-capçalera hidden">
+                        <h3>Registrar nou metge</h3>
+                        <button class="btn-danger" id="btn-tancar-metge" style="padding: 4px 10px; font-size: 12px;">X Tancar</button>
+                    </div>
+
+                    <div id="form-desplegable-metge" class="hidden" style="background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+                        <form id="create-doctor-form">
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Nom Complet:</label>
+                                <input type="text" id="doc-name" required>
+                            </div>
+
+                            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                    <label>Gènere:</label>
+                                    <select id="doc-gender" required>
+                                        <option value="Masculí">Masculí</option>
+                                        <option value="Femení">Femení</option>
+                                        <option value="Altres">Altres</option>
+                                    </select>
+                                </div>
+                                <div class="form-group hidden" id="bloc-doc-gender-altres" style="flex: 1; margin-bottom: 0;">
+                                    <label>Especificacions:</label>
+                                    <input type="text" id="doc-gender-altres-text">
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Especialitat:</label>
+                                <select id="doc-specialty" required>
+                                    <option value="Medicina General">Medicina General</option>
+                                    <option value="Pediatria">Pediatria</option>
+                                    <option value="Cardiologia">Cardiologia</option>
+                                    <option value="Traumatologia">Traumatologia</option>
+                                    <option value="Dermatologia">Dermatologia</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Nom d'usuari:</label>
+                                <input type="text" id="doc-username" required>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label>Contrasenya:</label>
+                                <input type="password" id="doc-password" required>
+                            </div>
+
+                            <button type="submit" class="btn-success" style="width: 100%; padding: 10px;">Registrar Metge</button>
+                        </form>
+                    </div>
+
+                    <div id="vista-dinamica-metges" class="quadre-contingut">
+                        <p style="color: #718096;">Carregant metges del sistema...</p>
+                    </div>
+                </div>
+
+                <div class="quadre-registres">
+                    
+                    <div id="capsalera-pacients-normal" class="quadre-capçalera">
+                        <h3>Pacients registrats</h3>
+                        <button class="btn-crear-petit" id="btn-obrir-pacient" onclick="obrirFormulariCrearPacientAdmin()">+ Crear Pacient</button>                    </div>
+
+                    <div id="capsalera-pacients-creacio" class="quadre-capçalera hidden">
+                        <h3>Registrar nou pacient</h3>
+                        <button class="btn-danger" id="btn-tancar-pacient" style="padding: 4px 10px; font-size: 12px;">X Tancar</button>
+                    </div>
+
+                    <div id="form-desplegable-pacient" class="hidden" style="background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+                        <form id="create-patient-form">
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Nom Complet:</label>
+                                <input type="text" id="pat-name" required>
+                            </div>
+
+                            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                    <label>Gènere:</label>
+                                    <select id="pat-gender" required>
+                                        <option value="Masculí">Masculí</option>
+                                        <option value="Femení">Femení</option>
+                                        <option value="Altres">Altres</option>
+                                    </select>
+                                </div>
+                                <div class="form-group hidden" id="bloc-pat-gender-altres" style="flex: 1; margin-bottom: 0;">
+                                    <label>Especificacions:</label>
+                                    <input type="text" id="pat-gender-altres-text">
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label>Data de Naixement:</label>
+                                <input type="date" id="pat-birth" required>
+                            </div>
+
+                            <button type="submit" class="btn-success" style="width: 100%; padding: 10px;">Registrar Pacient a la Clínica</button>
+                        </form>
+                    </div>
+
+                    <div id="vista-dinamica-pacients" class="quadre-contingut">
+                        <p style="color: #718096;">Carregant pacients del sistema...</p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+
+
+
+
+        <section id="seccio-configuració" class="seccio-admin hidden">
+            <h2>Configuració</h2>
+            <p>Contingut...</p>
+        </section>
+    </main>
+
+    <script src="admin.js"></script>
+</body>
+</html>
