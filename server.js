@@ -27,7 +27,9 @@ db.serialize(() => {
         password TEXT NOT NULL,
         gender TEXT,
         phone TEXT DEFAULT '',
-        email TEXT DEFAULT ''
+        email TEXT DEFAULT '',
+        createdAt TEXT,
+        createdBy TEXT
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS patients (
@@ -36,7 +38,9 @@ db.serialize(() => {
         gender TEXT,
         birthDate TEXT,
         phone TEXT DEFAULT '',
-        email TEXT DEFAULT ''
+        email TEXT DEFAULT '',
+        createdAt TEXT,
+        createdBy TEXT
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS config (
@@ -79,7 +83,8 @@ db.serialize(() => {
         patientName TEXT NOT NULL,
         date TEXT NOT NULL,
         reason TEXT,
-        doctorId TEXT
+        doctorId TEXT,
+        createdAt TEXT
     )`);
 
     // MODIFICACIÓ: Afegim doctorName per desar qui signa la nota de l'evolució
@@ -89,7 +94,8 @@ db.serialize(() => {
         date TEXT NOT NULL,
         type TEXT NOT NULL,
         text TEXT NOT NULL,
-        doctorName TEXT
+        doctorName TEXT,
+        createdAt TEXT
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS doctor_patients (
@@ -97,6 +103,18 @@ db.serialize(() => {
         patientId TEXT,
         PRIMARY KEY (doctorId, patientId)
     )`);
+
+    // Migració silenciosa per a bases de dades creades abans d'afegir el seguiment d'activitat.
+    // S'executa AL FINAL, quan totes les taules ja existeixen segur. Els errors (columna ja existent) s'ignoren.
+    const migracions = [
+        `ALTER TABLE doctors ADD COLUMN createdAt TEXT`,
+        `ALTER TABLE doctors ADD COLUMN createdBy TEXT`,
+        `ALTER TABLE patients ADD COLUMN createdAt TEXT`,
+        `ALTER TABLE patients ADD COLUMN createdBy TEXT`,
+        `ALTER TABLE timeline ADD COLUMN createdAt TEXT`,
+        `ALTER TABLE appointments ADD COLUMN createdAt TEXT`
+    ];
+    migracions.forEach(sql => db.run(sql, [], () => {}));
 });
 
 // ============================================================
@@ -193,14 +211,14 @@ app.post('/api/admins/login', (req, res) => {
 // DOCTORS
 // ============================================================
 app.get('/api/doctors', (req, res) => {
-    db.all("SELECT id, name, username, password, specialty, gender, phone, email FROM doctors", [], (err, rows) => {
+    db.all("SELECT id, name, username, password, specialty, gender, phone, email, createdAt, createdBy FROM doctors", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
 });
 
 app.post('/api/doctors', (req, res) => {
-    const { name, specialty, username, password, gender } = req.body;
+    const { name, specialty, username, password, gender, createdBy } = req.body;
     if (!name || !username || !password) return res.status(400).json({ error: "Falten camps obligatoris." });
 
     const anyActual = new Date().getFullYear().toString().slice(-2);
@@ -217,8 +235,9 @@ app.post('/api/doctors', (req, res) => {
         }
 
         const nouId = `${prefixAny}${nouContador.toString().padStart(4, '0')}`;
-        db.run(`INSERT INTO doctors (id, name, specialty, username, password, gender) VALUES (?, ?, ?, ?, ?, ?)`,
-            [nouId, name, specialty || '', username, password, gender || ''], function(err) {
+        const ara = new Date().toISOString();
+        db.run(`INSERT INTO doctors (id, name, specialty, username, password, gender, createdAt, createdBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [nouId, name, specialty || '', username, password, gender || '', ara, createdBy || 'Admin'], function(err) {
             if (err) {
                 if (err.message.includes("UNIQUE")) return res.status(400).json({ error: "L'usuari ja existeix." });
                 return res.status(500).json({ error: err.message });
@@ -252,14 +271,14 @@ app.delete('/api/doctors/:id', (req, res) => {
 // PATIENTS
 // ============================================================
 app.get('/api/patients', (req, res) => {
-    db.all("SELECT id, name, gender, birthDate, phone, email FROM patients", [], (err, rows) => {
+    db.all("SELECT id, name, gender, birthDate, phone, email, createdAt, createdBy FROM patients", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
 });
 
 app.post('/api/patients', (req, res) => {
-    const { name, gender, birthDate, doctorId } = req.body;
+    const { name, gender, birthDate, doctorId, createdBy } = req.body;
     if (!name) return res.status(400).json({ error: "El nom és obligatori." });
 
     const anyActual = new Date().getFullYear().toString().slice(-2);
@@ -276,10 +295,11 @@ app.post('/api/patients', (req, res) => {
         }
 
         const nouId = `${prefixAny}${nouContador.toString().padStart(4, '0')}`;
+        const ara = new Date().toISOString();
 
         db.serialize(() => {
-            db.run(`INSERT INTO patients (id, name, gender, birthDate) VALUES (?, ?, ?, ?)`,
-                [nouId, name, gender || '', birthDate || ''], function(err) {
+            db.run(`INSERT INTO patients (id, name, gender, birthDate, createdAt, createdBy) VALUES (?, ?, ?, ?, ?, ?)`,
+                [nouId, name, gender || '', birthDate || '', ara, createdBy || 'Admin'], function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 
                 if (doctorId) {
@@ -381,8 +401,8 @@ app.get('/api/appointments/:doctorId', (req, res) => {
 
 app.post('/api/appointments', (req, res) => {
     const { id, patientId, patientName, date, reason, doctorId } = req.body;
-    db.run(`INSERT INTO appointments (id, patientId, patientName, date, reason, doctorId) VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, patientId, patientName, date, reason, doctorId], function(err) {
+    db.run(`INSERT INTO appointments (id, patientId, patientName, date, reason, doctorId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id, patientId, patientName, date, reason, doctorId, new Date().toISOString()], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ success: true });
     });
@@ -399,7 +419,7 @@ app.delete('/api/appointments/:id', (req, res) => {
 // TIMELINE (HISTORIAL CLÍNIC MULTI-METGE)
 // ============================================================
 app.get('/api/timeline/:patientId', (req, res) => {
-    db.all("SELECT * FROM timeline WHERE patientId = ? ORDER BY id DESC", [req.params.patientId], (err, rows) => {
+    db.all("SELECT * FROM timeline WHERE patientId = ? ORDER BY createdAt DESC, id DESC", [req.params.patientId], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
@@ -407,8 +427,8 @@ app.get('/api/timeline/:patientId', (req, res) => {
 
 app.post('/api/timeline', (req, res) => {
     const { id, patientId, date, type, text, doctorName } = req.body;
-    db.run(`INSERT INTO timeline (id, patientId, date, type, text, doctorName) VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, patientId, date, type, text, doctorName || 'Desconegut'], function(err) {
+    db.run(`INSERT INTO timeline (id, patientId, date, type, text, doctorName, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id, patientId, date, type, text, doctorName || 'Desconegut', new Date().toISOString()], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ success: true });
     });
@@ -427,6 +447,159 @@ app.delete('/api/reset', (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
         });
+    });
+});
+
+// ============================================================
+// ACTIVITAT (Dashboard: historial per metge, per pacient i gràfica setmanal)
+// ============================================================
+
+// Activitat completa d'un metge: fitxa + cites + notes clíniques que ha signat
+app.get('/api/activity/doctor/:doctorId', (req, res) => {
+    const doctorId = req.params.doctorId;
+
+    db.get(`SELECT * FROM doctors WHERE id = ?`, [doctorId], (err, metge) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!metge) return res.status(404).json({ error: "Metge no trobat." });
+
+        db.get(`SELECT COUNT(*) as total FROM doctor_patients WHERE doctorId = ?`, [doctorId], (err, pacRow) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            db.all(`SELECT * FROM appointments WHERE doctorId = ?`, [doctorId], (err, cites) => {
+                if (err) return res.status(500).json({ error: err.message });
+
+                // Les notes clíniques no guarden doctorId, només el nom signat (ex: "Dr. Joan García").
+                // Fem JOIN amb patients per saber a qui pertany cada nota.
+                db.all(
+                    `SELECT timeline.*, patients.name as patientName
+                     FROM timeline
+                     LEFT JOIN patients ON timeline.patientId = patients.id
+                     WHERE timeline.doctorName LIKE ?`,
+                    [`%${metge.name}%`],
+                    (err, notesRaw) => {
+                    if (err) return res.status(500).json({ error: err.message });
+
+                    // Les cites ('cita') ja es compten a partir de la taula 'appointments';
+                    // si les sumem també des de 'timeline' sortirien duplicades.
+                    const notes = notesRaw.filter(n => n.type !== 'cita');
+
+                    const activitat = [];
+
+                    if (metge.createdAt) {
+                        activitat.push({
+                            type: 'creacio',
+                            date: metge.createdAt,
+                            text: `Fitxa de metge creada per ${metge.createdBy || 'Admin'}.`
+                        });
+                    }
+                    cites.forEach(c => activitat.push({
+                        type: 'cita',
+                        date: c.createdAt || c.date,
+                        text: `Cita amb ${c.patientName}: ${c.reason || 'sense motiu especificat'}.`
+                    }));
+                    notes.forEach(n => activitat.push({
+                        type: n.type || 'consulta',
+                        date: n.createdAt || n.date,
+                        text: `${n.patientName ? `Pacient: ${n.patientName} — ` : ''}${n.text}`
+                    }));
+
+                    activitat.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                    res.json({
+                        doctor: { id: metge.id, name: metge.name, specialty: metge.specialty, createdAt: metge.createdAt, createdBy: metge.createdBy },
+                        stats: { patients: pacRow.total, appointments: cites.length, notes: notes.length },
+                        activity: activitat
+                    });
+                });
+            });
+        });
+    });
+});
+
+// Activitat completa d'un pacient: fitxa + cites + notes clíniques (reutilitzant el mateix format que el timeline del metge)
+app.get('/api/activity/patient/:patientId', (req, res) => {
+    const patientId = req.params.patientId;
+
+    db.get(`SELECT * FROM patients WHERE id = ?`, [patientId], (err, pacient) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!pacient) return res.status(404).json({ error: "Pacient no trobat." });
+
+        db.all(`SELECT * FROM appointments WHERE patientId = ?`, [patientId], (err, cites) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            db.all(`SELECT * FROM timeline WHERE patientId = ?`, [patientId], (err, notesRaw) => {
+                if (err) return res.status(500).json({ error: err.message });
+
+                // Les cites ('cita') ja es compten a partir de la taula 'appointments';
+                // si les sumem també des de 'timeline' sortirien duplicades.
+                const notes = notesRaw.filter(n => n.type !== 'cita');
+
+                const activitat = [];
+
+                if (pacient.createdAt) {
+                    activitat.push({
+                        type: 'creacio',
+                        date: pacient.createdAt,
+                        text: `Fitxa de pacient creada per ${pacient.createdBy || 'Admin'}.`
+                    });
+                }
+                cites.forEach(c => activitat.push({
+                    type: 'cita',
+                    date: c.createdAt || c.date,
+                    doctorName: null,
+                    text: `Cita programada (${c.date}): ${c.reason || 'sense motiu especificat'}.`
+                }));
+                notes.forEach(n => activitat.push({
+                    type: n.type || 'consulta',
+                    date: n.createdAt || n.date,
+                    doctorName: n.doctorName,
+                    text: n.text
+                }));
+
+                activitat.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                res.json({
+                    patient: { id: pacient.id, name: pacient.name, createdAt: pacient.createdAt, createdBy: pacient.createdBy },
+                    stats: { appointments: cites.length, notes: notes.length },
+                    activity: activitat
+                });
+            });
+        });
+    });
+});
+
+// Activitat agregada per setmana (notes clíniques + cites creades), per al gràfic del dashboard
+app.get('/api/activity/weekly', (req, res) => {
+    const query = `
+        SELECT strftime('%Y-%W', createdAt) as setmana, COUNT(*) as total FROM (
+            SELECT createdAt FROM timeline WHERE createdAt IS NOT NULL
+            UNION ALL
+            SELECT createdAt FROM appointments WHERE createdAt IS NOT NULL
+        )
+        GROUP BY setmana
+        ORDER BY setmana ASC
+    `;
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Generem les últimes 8 setmanes (incloent les que no tenen activitat, per a un gràfic continu)
+        const setmanes = [];
+        const avui = new Date();
+        for (let i = 7; i >= 0; i--) {
+            const d = new Date(avui);
+            d.setDate(d.getDate() - (i * 7));
+            const onejan = new Date(d.getFullYear(), 0, 1);
+            const weekNum = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+            const clauSqlite = `${d.getFullYear()}-${String(weekNum - 1).padStart(2, '0')}`;
+            setmanes.push({ key: clauSqlite, label: `Set. ${weekNum}`, total: 0 });
+        }
+
+        rows.forEach(r => {
+            const trobada = setmanes.find(s => s.key === r.setmana);
+            if (trobada) trobada.total = r.total;
+        });
+
+        res.json(setmanes);
     });
 });
 

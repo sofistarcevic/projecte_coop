@@ -1,5 +1,5 @@
-let idPacientSeleccionat = null;    // Variable global per al control de pacients
-let filtreActual = 'mine';         // Estat global de filtratge: 'mine' o 'all'
+let idPacientSeleccionat = null;
+let filtreActual = 'mine';
 let elsMeusPacients = [];
 let totsElsPacientsGlobals = [];
 
@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 // ==========================================
-// SECCIÓ A: LÒGICA DE LA PESTANYA PACIENTS
+// LÒGICA DE LA PESTANYA PACIENTS
 // ==========================================
 
 function toggleFormulariPacient() {
@@ -218,7 +218,6 @@ async function seleccionarPacient(idPacient) {
     }
 }
 
-// MODIFICACIÓ: Pinta el metge responsable al timeline
 function renderTimeline(timelineArray) {
     const box = document.getElementById('history-timeline');
     box.innerHTML = '';
@@ -239,9 +238,9 @@ function renderTimeline(timelineArray) {
         entry.innerHTML = `
             <div class="timeline-header">
                 <strong>${icona} ${item.type.toUpperCase()}</strong>
-                <span style="color: var(--primary-color); font-size:12px; font-weight:600;">Signat: ${item.doctorName || 'Desconegut'}</span>
                 <span class="timeline-date">${item.date}</span>
             </div>
+            <div style="color: var(--primary-color); font-size:12px; font-weight:600; margin-top:2px;">Signat: ${item.doctorName || 'Desconegut'}</div>
             <div class="timeline-body" style="margin-top:5px;">${item.text.replace(/\n/g, '<br>')}</div>
         `;
         box.appendChild(entry);
@@ -259,7 +258,7 @@ async function executarCreacioPacient(e) {
         const response = await fetch('/api/patients', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, birthDate, gender, doctorId: user.id })
+            body: JSON.stringify({ name, birthDate, gender, doctorId: user.id, createdBy: `Dr. ${user.name}` })
         });
 
         if (!response.ok) throw new Error();
@@ -297,7 +296,6 @@ async function executarEdicioFitxa(e) {
     } catch (err) { console.error(err); }
 }
 
-// MODIFICACIÓ: Adjunta l'autor de la consulta mèdica
 async function executarAfegirConsulta(e) {
     e.preventDefault();
     if (!idPacientSeleccionat) return;
@@ -329,7 +327,7 @@ async function executarAfegirConsulta(e) {
 }
 
 // ==========================================
-// SECCIÓ B: LÒGICA DE LA PESTANYA CITES
+// LÒGICA DE LA PESTANYA CITES
 // ==========================================
 
 async function actualitzarDesplegablePacientsCites() {
@@ -352,7 +350,6 @@ async function actualitzarDesplegablePacientsCites() {
     } catch (err) { console.error(err); }
 }
 
-// MODIFICACIÓ: Carrega només l'agenda del metge loguejat
 async function renderAppointmentsTable() {
     const tbody = document.getElementById('appointments-table-body');
     if (!tbody) return;
@@ -385,7 +382,6 @@ async function renderAppointmentsTable() {
     } catch (err) { console.error(err); }
 }
 
-// MODIFICACIÓ: Programa la cita afegint doctorId i doctorName
 async function executarProgramarCita(e) {
     e.preventDefault();
     const user = getCurrentUser();
@@ -427,7 +423,6 @@ async function executarProgramarCita(e) {
     } catch (err) { console.error(err); }
 }
 
-// MODIFICACIÓ: Anul·la afegint la signatura del metge al timeline
 window.esborrarCita = async function(idCita, idPacient) {
     if (confirm("Segur que vols anul·lar aquesta cita de l'agenda?")) {
         const user = getCurrentUser();

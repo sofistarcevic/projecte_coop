@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", function() {
     
     // =========================================================================
-    // 1. CONTROL DE CANVI DE PESTANYES
+    // CONTROL DE CANVI DE PESTANYES
     // =========================================================================
     const btnDashboard = document.getElementById('btn-dashboard');
     const btnMetgesPacients = document.getElementById('btn-metges-pacients');
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // =========================================================================
-    // 2. LOGOUT
+    // LOGOUT
     // =========================================================================
     document.getElementById('logout-btn').addEventListener('click', function() {
         localStorage.removeItem('currentUser');
@@ -53,6 +53,53 @@ document.addEventListener("DOMContentLoaded", function() {
     let llistaPacientsGlobals = [];
 
     // =========================================================================
+    // DASHBOARD — GRÀFIC D'ACTIVITAT SETMANAL
+    // =========================================================================
+    async function carregarGraficActivitatSetmanal() {
+        const contenidor = document.getElementById('grafic-activitat-setmanal');
+        if (!contenidor) return;
+        try {
+            const res = await fetch('/api/activity/weekly');
+            if (!res.ok) throw new Error();
+            const setmanes = await res.json();
+
+            const maxValor = Math.max(1, ...setmanes.map(s => s.total));
+            const ampleSVG = 700, altSVG = 220;
+            const marges = { top: 15, bottom: 35, left: 10, right: 10 };
+            const altUtil = altSVG - marges.top - marges.bottom;
+            const ampleBarra = (ampleSVG - marges.left - marges.right) / setmanes.length;
+
+            let barresSVG = '';
+            setmanes.forEach((s, i) => {
+                const altBarra = (s.total / maxValor) * altUtil;
+                const x = marges.left + i * ampleBarra + ampleBarra * 0.15;
+                const wBarra = ampleBarra * 0.7;
+                const y = marges.top + (altUtil - altBarra);
+                const colorBarra = s.total > 0 ? 'var(--primary-color)' : '#e2e8f0';
+
+                barresSVG += `
+                    <rect x="${x}" y="${y}" width="${wBarra}" height="${Math.max(altBarra, 2)}" rx="4" fill="${colorBarra}">
+                        <title>${s.label}: ${s.total} accions</title>
+                    </rect>
+                    ${s.total > 0 ? `<text x="${x + wBarra / 2}" y="${y - 6}" font-size="11" font-weight="700" fill="#2d3748" text-anchor="middle">${s.total}</text>` : ''}
+                    <text x="${x + wBarra / 2}" y="${altSVG - 12}" font-size="10" fill="#a0aec0" text-anchor="middle">${s.label}</text>
+                `;
+            });
+
+            contenidor.innerHTML = `
+                <svg viewBox="0 0 ${ampleSVG} ${altSVG}" style="width:100%;height:auto;max-height:240px;">
+                    <line x1="${marges.left}" y1="${marges.top + altUtil}" x2="${ampleSVG - marges.right}" y2="${marges.top + altUtil}" stroke="#e2e8f0" stroke-width="1"/>
+                    ${barresSVG}
+                </svg>
+            `;
+        } catch (err) {
+            console.error(err);
+            contenidor.innerHTML = '<p style="color:#e53e3e;font-size:13px;text-align:center;">Error en carregar el gràfic d\'activitat.</p>';
+        }
+    }
+    carregarGraficActivitatSetmanal();
+
+    // =========================================================================
     // METGES — CREACIÓ
     // =========================================================================
     const capNormalMetges    = document.getElementById('capsalera-metges-normal');
@@ -64,7 +111,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const formCreateDoctor   = document.getElementById('create-doctor-form');
     const vistaDinamicaMetges = document.getElementById('vista-dinamica-metges');
 
-    // Carrega i pinta la taula de metges
+    //Carrega i pinta la taula de metges
     async function carregarMetgesRegistrats() {
         try {
             const response = await fetch('/api/doctors');
@@ -128,7 +175,7 @@ document.addEventListener("DOMContentLoaded", function() {
         blocGenderAltres.classList.toggle('hidden', selectGender.value !== 'Altres');
     });
 
-    // Enviar formulari de creació de metge
+    //Enviar formulari de creació de metge
     formCreateDoctor.addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -143,7 +190,8 @@ document.addEventListener("DOMContentLoaded", function() {
             gender:    genereFinal,
             specialty: document.getElementById('doc-specialty').value,
             username:  document.getElementById('doc-username').value.trim(),
-            password:  document.getElementById('doc-password').value
+            password:  document.getElementById('doc-password').value,
+            createdBy: getCurrentUser()?.name || 'Admin'
         };
 
         try {
@@ -175,14 +223,15 @@ document.addEventListener("DOMContentLoaded", function() {
         const metge = llistaMetgesGlobals.find(m => m.id === id);
         if (!metge) return;
 
-        // Canviem la capçalera: amaguem el botó "Crear" i posem el títol de fitxa
         const capNormal = document.getElementById('capsalera-metges-normal');
         capNormal.querySelector('h3').textContent = `Fitxa: ${metge.name}`;
         document.getElementById('btn-obrir-metge').style.display = 'none';
 
-        const optionsEspecialitat = [
-            'Medicina General','Pediatria','Cardiologia','Traumatologia','Dermatologia'
-        ].map(e => `<option value="${e}" ${metge.specialty === e ? 'selected' : ''}>${e}</option>`).join('');
+        let nomsEspecialitats = llistaEspecialitats.map(e => e.name);
+        if (metge.specialty && !nomsEspecialitats.includes(metge.specialty)) nomsEspecialitats.push(metge.specialty);
+        if (nomsEspecialitats.length === 0) nomsEspecialitats = [metge.specialty || ''];
+        const optionsEspecialitat = nomsEspecialitats
+            .map(e => `<option value="${e}" ${metge.specialty === e ? 'selected' : ''}>${e}</option>`).join('');
 
         const genereMasculiSel  = metge.gender === 'Masculí' ? 'selected' : '';
         const genereFeméSel     = metge.gender === 'Femení'  ? 'selected' : '';
@@ -244,12 +293,86 @@ document.addEventListener("DOMContentLoaded", function() {
                 </div>
             </div>
 
+            <div class="apartat-fitxa">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h4 style="margin:0;border:none;padding:0;">Activitat i Historial</h4>
+                    <button type="button" class="btn-primary" style="width:auto;padding:5px 12px;font-size:12px;" onclick="toggleActivitatMetge('${metge.id}')">📊 Veure activitat</button>
+                </div>
+                <p style="font-size:12px;color:#a0aec0;margin-top:6px;">Creat: ${metge.createdAt ? new Date(metge.createdAt).toLocaleString('ca-ES') : 'Desconegut'} ${metge.createdBy ? `per <strong>${metge.createdBy}</strong>` : ''}</p>
+                <div id="bloc-activitat-metge" class="hidden" style="margin-top:12px;"></div>
+            </div>
+
             <div style="margin-top:15px;display:flex;gap:10px;">
                 <button class="btn-success" onclick="guardarCanvisMetge('${metge.id}')">💾 Guardar canvis</button>
                 <button class="btn-danger"  onclick="tancarFitxaMetge()">✕ Tancar fitxa</button>
             </div>
         `;
     }
+
+    // Renderitza una llista d'activitat reutilitzant l'estil .timeline-item ja definit a style.css
+    function renderActivityFeed(activity) {
+        if (!activity || activity.length === 0) {
+            return '<p style="color:#a0aec0;font-style:italic;font-size:13px;">Encara no hi ha cap activitat registrada.</p>';
+        }
+        return activity.map(item => {
+            let icona = '📝';
+            let classeExtra = '';
+            if (item.type === 'creacio') icona = '🆕';
+            if (item.type === 'cita') icona = '📅';
+            if (item.type === 'cita-anulada') { icona = '❌'; classeExtra = 'cita-anulada'; }
+            if (item.type === 'cita' && classeExtra === '') classeExtra = 'cita';
+
+            const dataLlegible = isNaN(new Date(item.date)) ? item.date : new Date(item.date).toLocaleString('ca-ES');
+            const firma = item.doctorName ? `<span style="color: var(--primary-color); font-size:12px; font-weight:600;">${item.doctorName}</span>` : '';
+
+            return `
+                <div class="timeline-item ${classeExtra}">
+                    <div class="timeline-header">
+                        <strong>${icona} ${item.type.toUpperCase()}</strong>
+                        ${firma}
+                        <span class="timeline-date">${dataLlegible}</span>
+                    </div>
+                    <div class="timeline-body" style="margin-top:5px;">${(item.text || '').replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    window.toggleActivitatMetge = async function(doctorId) {
+        const bloc = document.getElementById('bloc-activitat-metge');
+        if (!bloc) return;
+        if (!bloc.classList.contains('hidden')) {
+            bloc.classList.add('hidden');
+            return;
+        }
+        bloc.classList.remove('hidden');
+        bloc.innerHTML = '<p style="color:#a0aec0;font-size:13px;">Carregant activitat...</p>';
+        try {
+            const res = await fetch(`/api/activity/doctor/${doctorId}`);
+            if (!res.ok) throw new Error();
+            const dades = await res.json();
+            bloc.innerHTML = `
+                <div style="display:flex;gap:10px;margin-bottom:12px;">
+                    <div style="flex:1;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;">
+                        <div style="font-size:18px;font-weight:700;color:var(--primary-color);">${dades.stats.patients}</div>
+                        <div style="font-size:11px;color:#718096;">Pacients</div>
+                    </div>
+                    <div style="flex:1;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;">
+                        <div style="font-size:18px;font-weight:700;color:var(--primary-color);">${dades.stats.appointments}</div>
+                        <div style="font-size:11px;color:#718096;">Cites</div>
+                    </div>
+                    <div style="flex:1;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;">
+                        <div style="font-size:18px;font-weight:700;color:var(--primary-color);">${dades.stats.notes}</div>
+                        <div style="font-size:11px;color:#718096;">Notes clíniques</div>
+                    </div>
+                </div>
+                ${renderActivityFeed(dades.activity)}
+            `;
+        } catch (err) {
+            console.error(err);
+            bloc.innerHTML = '<p style="color:#e53e3e;font-size:13px;">Error en carregar l\'activitat.</p>';
+        }
+    };
 
     function tancarFitxaMetge() {
         document.getElementById('capsalera-metges-normal').querySelector('h3').textContent = 'Metges registrats';
@@ -299,7 +422,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // Funció global per al select de gènere dins la fitxa
     window.toggleAltresMetge = function() {
         const sel = document.getElementById('edit-doc-gender');
         const bloc = document.getElementById('bloc-edit-doc-gender-altres');
@@ -403,7 +525,8 @@ document.addEventListener("DOMContentLoaded", function() {
             const dadesPacient = {
                 name:      document.getElementById('pat-name').value.trim(),
                 gender:    genereFinal,
-                birthDate: document.getElementById('pat-birth').value
+                birthDate: document.getElementById('pat-birth').value,
+                createdBy: getCurrentUser()?.name || 'Admin'
             };
 
             try {
@@ -488,12 +611,53 @@ document.addEventListener("DOMContentLoaded", function() {
                 </div>
             </div>
 
+            <div class="apartat-fitxa">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h4 style="margin:0;border:none;padding:0;">Activitat i Historial Clínic</h4>
+                    <button type="button" class="btn-primary" style="width:auto;padding:5px 12px;font-size:12px;" onclick="toggleActivitatPacient('${pacient.id}')">📊 Veure activitat</button>
+                </div>
+                <p style="font-size:12px;color:#a0aec0;margin-top:6px;">Creat: ${pacient.createdAt ? new Date(pacient.createdAt).toLocaleString('ca-ES') : 'Desconegut'} ${pacient.createdBy ? `per <strong>${pacient.createdBy}</strong>` : ''}</p>
+                <div id="bloc-activitat-pacient" class="hidden" style="margin-top:12px;"></div>
+            </div>
+
             <div style="margin-top:15px;display:flex;gap:10px;">
                 <button class="btn-success" onclick="guardarCanvisPacient('${pacient.id}')">💾 Guardar canvis</button>
                 <button class="btn-danger"  onclick="tancarFitxaPacient()">✕ Tancar fitxa</button>
             </div>
         `;
     }
+
+    window.toggleActivitatPacient = async function(patientId) {
+        const bloc = document.getElementById('bloc-activitat-pacient');
+        if (!bloc) return;
+        if (!bloc.classList.contains('hidden')) {
+            bloc.classList.add('hidden');
+            return;
+        }
+        bloc.classList.remove('hidden');
+        bloc.innerHTML = '<p style="color:#a0aec0;font-size:13px;">Carregant activitat...</p>';
+        try {
+            const res = await fetch(`/api/activity/patient/${patientId}`);
+            if (!res.ok) throw new Error();
+            const dades = await res.json();
+            bloc.innerHTML = `
+                <div style="display:flex;gap:10px;margin-bottom:12px;">
+                    <div style="flex:1;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;">
+                        <div style="font-size:18px;font-weight:700;color:var(--primary-color);">${dades.stats.appointments}</div>
+                        <div style="font-size:11px;color:#718096;">Cites</div>
+                    </div>
+                    <div style="flex:1;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;">
+                        <div style="font-size:18px;font-weight:700;color:var(--primary-color);">${dades.stats.notes}</div>
+                        <div style="font-size:11px;color:#718096;">Notes clíniques</div>
+                    </div>
+                </div>
+                ${renderActivityFeed(dades.activity)}
+            `;
+        } catch (err) {
+            console.error(err);
+            bloc.innerHTML = '<p style="color:#e53e3e;font-size:13px;">Error en carregar l\'activitat.</p>';
+        }
+    };
 
     function tancarFitxaPacient() {
         document.getElementById('capsalera-pacients-normal').querySelector('h3').textContent = 'Pacients registrats';
@@ -542,7 +706,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // Funció global per al select de gènere dins la fitxa de pacient
     window.toggleAltresPacient = function() {
         const sel  = document.getElementById('edit-pat-gender');
         const bloc = document.getElementById('bloc-edit-pat-gender-altres');
@@ -550,7 +713,7 @@ document.addEventListener("DOMContentLoaded", function() {
     };
 
     // =========================================================================
-    // EXPOSICIÓ GLOBAL DE FUNCIONS (necessari perquè funcionin els onclick inline)
+    // EXPOSICIÓ GLOBAL DE FUNCIONS
     // =========================================================================
     window.veureFitxaMetge     = veureFitxaMetge;
     window.guardarCanvisMetge  = guardarCanvisMetge;
@@ -560,7 +723,6 @@ document.addEventListener("DOMContentLoaded", function() {
     window.guardarCanvisPacient = guardarCanvisPacient;
     window.tancarFitxaPacient  = tancarFitxaPacient;
 
-    // Funció d'obertura de formulari exposada per l'HTML (onclick inline a admin.html)
     window.obrirFormulariCrearMetge = function() {
         document.getElementById('btn-obrir-metge').click();
     };
@@ -628,17 +790,28 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function pintarEspecialitats() {
         const contenidor = document.getElementById('llista-especialitats');
-        if (!contenidor) return;
-        if (llistaEspecialitats.length === 0) {
-            contenidor.innerHTML = '<p style="color:#a0aec0;font-size:13px;text-align:center;padding:10px;">Cap especialitat afegida.</p>';
-            return;
+        if (contenidor) {
+            if (llistaEspecialitats.length === 0) {
+                contenidor.innerHTML = '<p style="color:#a0aec0;font-size:13px;text-align:center;padding:10px;">Cap especialitat afegida.</p>';
+            } else {
+                contenidor.innerHTML = llistaEspecialitats.map(esp => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid #e2e8f0;">
+                        <span style="font-size:14px;">🩺 ${esp.name}</span>
+                        <button onclick="eliminarEspecialitat(${esp.id})" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:18px;line-height:1;" title="Eliminar">×</button>
+                    </div>
+                `).join('');
+            }
         }
-        contenidor.innerHTML = llistaEspecialitats.map(esp => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid #e2e8f0;">
-                <span style="font-size:14px;">🩺 ${esp.name}</span>
-                <button onclick="eliminarEspecialitat(${esp.id})" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:18px;line-height:1;" title="Eliminar">×</button>
-            </div>
-        `).join('');
+
+        // Sincronitzem també el desplegable d'especialitats del formulari de creació de metge
+        const selectCreacio = document.getElementById('doc-specialty');
+        if (selectCreacio) {
+            if (llistaEspecialitats.length === 0) {
+                selectCreacio.innerHTML = '<option value="" disabled selected>No hi ha especialitats creades</option>';
+            } else {
+                selectCreacio.innerHTML = llistaEspecialitats.map(esp => `<option value="${esp.name}">${esp.name}</option>`).join('');
+            }
+        }
     }
 
     const btnAfegirEsp = document.getElementById('btn-afegir-especialitat');
@@ -662,7 +835,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             } catch (e) { alert("Error de xarxa."); }
         });
-        // Permet prémer Enter per afegir
+
         document.getElementById('nova-especialitat').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') { e.preventDefault(); btnAfegirEsp.click(); }
         });
@@ -694,7 +867,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const contenidor = document.getElementById('llista-admins');
         if (!contenidor) return;
 
-        // Sempre mostrem el compte mestre fix
         let html = `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;">
                 <span>👑 <strong>admin</strong> <span style="color:#a0aec0;font-size:12px;">(Mestre)</span></span>

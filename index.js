@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", async function() {
     const loginForm = document.getElementById('login-form');
     const errorMsg = document.getElementById('login-error');
 
-    // PAS 1: Connexió immediata per rebre el nom del centre des de SQLite
+    //Connexió immediata per rebre el nom del centre des de SQLite
     try {
         const response = await fetch('/api/config');
         if (response.ok) {
@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", async function() {
         titolClinic.textContent = "Hospital Global";
     }
 
-    // PAS 2: Gestió de la validació d'usuaris
+    //Gestió de la validació d'usuaris
     loginForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         errorMsg.style.display = 'none';
@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async function() {
         const usernameInput = document.getElementById('username').value.trim();
         const passwordInput = document.getElementById('password').value;
 
-        // Regla d'Or: Administrador Mestre definit en codi dur per seguretat d'accés
+        //Administrador Mestre definit en codi dur
         if (usernameInput === 'admin' && passwordInput === 'admin') {
             const adminUser = { username: 'admin', role: 'admin', name: 'Administrador Mestre' };
             localStorage.setItem('currentUser', JSON.stringify(adminUser));
@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async function() {
             return;
         }
 
-        // Si no és l'administrador, connectem amb la base de dades SQLite per comprovar metges
+        //Si no és l'administrador, connectem amb la base de dades SQLite per comprovar metges/altres adimins
         try {
             const response = await fetch('/api/doctors');
             if (!response.ok) throw new Error("Error en llegir metges");
