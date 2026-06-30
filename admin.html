@@ -19,17 +19,6 @@
             font-weight: 600;
             margin: 0;
         }
-        .btn-logout {   /*Botó logout*/
-            background-color: var(--error-color);
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 13px;
-            transition: background-color 0.2s;
-        }
 
         /*Pestanyes*/
         .nav-tabs {
@@ -71,7 +60,7 @@
             font-weight: 700;
             border-bottom: 3px solid var(--primary-color);
         }
-        .tab-btn.active::after, /*Amaguem línia divisòria vertical que queda al costat del botó actiu*/
+        .tab-btn.active::after,
         .tab-btn.active + .tab-btn::after {
             background-color: transparent !important;
         }
@@ -104,7 +93,6 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
         }
 
-        /* Adaptabilitat total per a pantalles de mòbil o tauletes */
         @media (max-width: 992px) {
             .contenidor-quadres {
                 display: block;
@@ -149,7 +137,6 @@
             color: #4a5568;
             font-size: 14px;
         }
-        /* Files de taula clicables per obrir fitxes */
         tr.clicable-row {
             cursor: pointer;
             transition: background 0.15s;
@@ -158,7 +145,6 @@
             background-color: #f0fff4 !important;
         }
 
-        /* Targeta d'apartats de fitxa */
         .apartat-fitxa {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -192,12 +178,22 @@
 
     <main>
         <section id="seccio-dashboard" class="seccio-admin">
-            <h2>Dashboard</h2>
-            <p>Contingut ...</p>
+            <h2 style="margin-bottom:20px;">Dashboard</h2>
+
+            <div class="contenidor-quadres">
+                <div class="quadre-registres" style="width:100%;">
+                    <div class="quadre-capçalera">
+                        <h3>📈 Activitat Setmanal</h3>
+                    </div>
+                    <div class="quadre-contingut">
+                        <p style="font-size:12px;color:#a0aec0;margin-bottom:10px;">Notes clíniques + cites creades durant les últimes 8 setmanes.</p>
+                        <div id="grafic-activitat-setmanal" style="min-height:220px;">
+                            <p style="color:#a0aec0;font-size:13px;text-align:center;padding:30px;">Carregant gràfic...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
-
-
-        
 
         <section id="seccio-metges-pacients" class="seccio-admin hidden">
             <div class="contenidor-quadres">
@@ -324,18 +320,10 @@
             </div>
         </section>
 
-
-
-
-
-
         <section id="seccio-configuració" class="seccio-admin hidden">
-            <h2 style="margin-bottom:25px;">🔧 Panell de Configuració del Sistema</h2>
+            <h2 style="margin-bottom:25px;">Panell de Configuració del Sistema</h2>
 
-            <!-- FILA SUPERIOR: Clínica + Especialitats -->
             <div class="contenidor-quadres" style="margin-bottom: 0;">
-
-                <!-- Informació de la Clínica -->
                 <div class="quadre-registres">
                     <div class="quadre-capçalera">
                         <h3>🏢 Informació de la Clínica</h3>
@@ -366,7 +354,6 @@
                     </div>
                 </div>
 
-                <!-- Especialitats Mèdiques -->
                 <div class="quadre-registres">
                     <div class="quadre-capçalera">
                         <h3>🗂️ Especialitats Mèdiques</h3>
@@ -384,10 +371,7 @@
 
             </div>
 
-            <!-- FILA INFERIOR: Seguretat + Zona Crítica -->
             <div class="contenidor-quadres" style="margin-top:25px;">
-
-                <!-- Seguretat i Administradors -->
                 <div class="quadre-registres">
                     <div class="quadre-capçalera">
                         <h3>🛡️ Seguretat i Administradors</h3>
@@ -425,7 +409,6 @@
                     </div>
                 </div>
 
-                <!-- Zona de Manteniment Crític -->
                 <div class="quadre-registres" style="border-color:#feb2b2 !important;background:#fff5f5 !important;">
                     <div class="quadre-capçalera" style="border-bottom-color:#fed7d7;">
                         <h3 style="color:#c53030;">⚠️ Zona de Manteniment Crític i Risc Extrem</h3>
@@ -468,6 +451,7 @@
         </section>
     </main>
 
+    <script src="db.js"></script>
     <script src="admin.js"></script>
 </body>
 </html>
