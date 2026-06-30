@@ -34,3 +34,17 @@ Clona aquest repositori, accedeix a la carpeta i instal·la els mòduls necessar
 git clone [https://github.com/sofistarcevic/projecte_coop.git](https://github.com/sofistarcevic/projecte_coop.git)
 cd projecte_coop
 npm install express sqlite3
+
+### 3. Executar el servidor
+Inicia el servei web:
+```bash
+node server.js
+
+El servidor s'aixecarà automàticament al port 5000 i crearà de forma autònoma el fitxer de la base de dades hospital.db amb totes les taules i dades inicials de fàbrica.
+
+### Copyright i Llicència
+Copyright (c) 2026 Sofija Starcevic, Àlex López, Víctor Lorenzo, Nil Farrús.
+
+Aquest projecte està llicenciat sota la Llicència MIT. Això significa que ets lliure de utilitzar, modificar i distribuir aquest codi per a altres projectes acadèmics, socials o de cooperació internacional, sempre que s'inclogui el reconeixement dels autors originals.
+
+Desenvolupat com a part del Projecte de Cooperació amb Tecnologies Wi-Fi (QP 2025-2026).
