@@ -39,7 +39,6 @@ db.serialize(() => {
         email TEXT DEFAULT ''
     )`);
 
-    // Configuració ampliada amb nous camps
     db.run(`CREATE TABLE IF NOT EXISTS config (
         id TEXT PRIMARY KEY,
         clinicName  TEXT DEFAULT '',
@@ -54,13 +53,11 @@ db.serialize(() => {
         }
     });
 
-    // Taula d'especialitats
     db.run(`CREATE TABLE IF NOT EXISTS specialties (
         id   INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL
     )`);
 
-    // Especialitats per defecte (si la taula és buida)
     db.get("SELECT COUNT(*) as count FROM specialties", [], (err, row) => {
         if (!err && row && row.count === 0) {
             const defaults = ['Medicina General', 'Pediatria', 'Cardiologia', 'Traumatologia', 'Dermatologia'];
@@ -68,7 +65,6 @@ db.serialize(() => {
         }
     });
 
-    // Taula d'administradors (a part de l'admin mestre hard-coded)
     db.run(`CREATE TABLE IF NOT EXISTS admins (
         id       INTEGER PRIMARY KEY AUTOINCREMENT,
         name     TEXT DEFAULT '',
@@ -76,29 +72,31 @@ db.serialize(() => {
         password TEXT NOT NULL
     )`);
 
-    // Taula d'agenda de cites operatives
+    // MODIFICACIÓ: Afegim doctorId per fer l'agenda privada
     db.run(`CREATE TABLE IF NOT EXISTS appointments (
         id TEXT PRIMARY KEY,
         patientId TEXT NOT NULL,
         patientName TEXT NOT NULL,
         date TEXT NOT NULL,
-        reason TEXT
+        reason TEXT,
+        doctorId TEXT
     )`);
 
-    // Taula per a l'historial de consultes i anul·lacions (Timeline)
+    // MODIFICACIÓ: Afegim doctorName per desar qui signa la nota de l'evolució
     db.run(`CREATE TABLE IF NOT EXISTS timeline (
         id TEXT PRIMARY KEY,
         patientId TEXT NOT NULL,
         date TEXT NOT NULL,
         type TEXT NOT NULL,
-        text TEXT NOT NULL
+        text TEXT NOT NULL,
+        doctorName TEXT
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS doctor_patients (
-    doctorId TEXT,
-    patientId TEXT,
-    PRIMARY KEY (doctorId, patientId)
-)`);
+        doctorId TEXT,
+        patientId TEXT,
+        PRIMARY KEY (doctorId, patientId)
+    )`);
 });
 
 // ============================================================
@@ -182,7 +180,6 @@ app.delete('/api/admins/:id', (req, res) => {
     });
 });
 
-// Login d'admins secundaris (comprova la taula admins + l'admin mestre)
 app.post('/api/admins/login', (req, res) => {
     const { username, password } = req.body;
     db.get("SELECT * FROM admins WHERE username=? AND password=?", [username, password], (err, row) => {
@@ -243,7 +240,6 @@ app.put('/api/doctors/:id', (req, res) => {
     );
 });
 
-// Eliminar metge definitivament
 app.delete('/api/doctors/:id', (req, res) => {
     db.run(`DELETE FROM doctors WHERE id=?`, [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -263,7 +259,6 @@ app.get('/api/patients', (req, res) => {
 });
 
 app.post('/api/patients', (req, res) => {
-    // Reben també de manera opcional doctorId (quan el crea un metge)
     const { name, gender, birthDate, doctorId } = req.body;
     if (!name) return res.status(400).json({ error: "El nom és obligatori." });
 
@@ -282,24 +277,18 @@ app.post('/api/patients', (req, res) => {
 
         const nouId = `${prefixAny}${nouContador.toString().padStart(4, '0')}`;
 
-        // Fem un serialize per assegurar que si hi ha un doctorId, s'insereix tot en ordre
         db.serialize(() => {
-            // 1. Inserim el pacient a la taula global
             db.run(`INSERT INTO patients (id, name, gender, birthDate) VALUES (?, ?, ?, ?)`,
                 [nouId, name, gender || '', birthDate || ''], function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 
-                // 2. Si l'ha creat un metge (hi ha doctorId), el vinculem directament
                 if (doctorId) {
                     db.run(`INSERT OR IGNORE INTO doctor_patients (doctorId, patientId) VALUES (?, ?)`, 
                         [doctorId, nouId], function(vincErr) {
                         if (vincErr) return res.status(500).json({ error: vincErr.message });
-                        
-                        // Responem un cop s'ha creat la relació
                         res.status(201).json({ success: true, id: nouId });
                     });
                 } else {
-                    // Si l'ha creat l'admin (sense doctorId), responem directament
                     res.status(201).json({ success: true, id: nouId });
                 }
             });
@@ -316,7 +305,6 @@ app.put('/api/patients/:id', (req, res) => {
     });
 });
 
-// Eliminar pacient definitivament
 app.delete('/api/patients/:id', (req, res) => {
     db.run(`DELETE FROM patients WHERE id=?`, [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -325,9 +313,6 @@ app.delete('/api/patients/:id', (req, res) => {
     });
 });
 
-// ============================================================
-// BACKUP — Descarregar el fitxer hospital.db
-// ============================================================
 app.get('/api/backup', (req, res) => {
     db.run("PRAGMA wal_checkpoint(FULL)", [], () => {
         res.download(DB_PATH, 'hospital_backup.db', (err) => {
@@ -336,85 +321,6 @@ app.get('/api/backup', (req, res) => {
     });
 });
 
-// ============================================================
-// RESET TOTAL — Eliminar totes les dades (buida taules)
-// ============================================================
-app.delete('/api/reset', (req, res) => {
-    db.serialize(() => {
-        db.run(`DELETE FROM doctors`);
-        db.run(`DELETE FROM patients`);
-        db.run(`DELETE FROM specialties`);
-        db.run(`DELETE FROM admins`);
-        db.run(`DELETE FROM doctor_patients`);
-        db.run(`UPDATE config SET clinicName='Hospital Central de Proves', clinicPhone='', clinicAddr='', clinicEmail='' WHERE id='GLOBAL'`, function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        });
-    });
-});
-
-// ============================================================
-// APPOINTMENTS (CITES)
-// ============================================================
-app.get('/api/appointments', (req, res) => {
-    db.all("SELECT * FROM appointments ORDER BY date ASC", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-
-app.post('/api/appointments', (req, res) => {
-    const { id, patientId, patientName, date, reason } = req.body;
-    db.run(`INSERT INTO appointments (id, patientId, patientName, date, reason) VALUES (?, ?, ?, ?, ?)`,
-        [id, patientId, patientName, date, reason], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ success: true });
-    });
-});
-
-app.delete('/api/appointments/:id', (req, res) => {
-    db.run(`DELETE FROM appointments WHERE id=?`, [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
-    });
-});
-
-// ============================================================
-// TIMELINE (HISTORIAL CLÍNIC)
-// ============================================================
-app.get('/api/timeline/:patientId', (req, res) => {
-    db.all("SELECT * FROM timeline WHERE patientId = ? ORDER BY id DESC", [req.params.patientId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-
-app.post('/api/timeline', (req, res) => {
-    const { id, patientId, date, type, text } = req.body;
-    db.run(`INSERT INTO timeline (id, patientId, date, type, text) VALUES (?, ?, ?, ?, ?)`,
-        [id, patientId, date, type, text], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ success: true });
-    });
-});
-
-// Actualització del RESET TOTAL per incloure les noves taules
-app.delete('/api/reset', (req, res) => {
-    db.serialize(() => {
-        db.run(`DELETE FROM doctors`);
-        db.run(`DELETE FROM patients`);
-        db.run(`DELETE FROM specialties`);
-        db.run(`DELETE FROM admins`);
-        db.run(`DELETE FROM appointments`);
-        db.run(`DELETE FROM timeline`);
-        db.run(`UPDATE config SET clinicName='Hospital Central de Proves', clinicPhone='', clinicAddr='', clinicEmail='' WHERE id='GLOBAL'`, function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        });
-    });
-});
-
-// Obtenir tots els pacients del sistema (perquè el metge pugui cercar i assignar-se'ls)
 app.get('/api/patients/all', (req, res) => {
     db.all("SELECT * FROM patients ORDER BY name ASC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -422,7 +328,6 @@ app.get('/api/patients/all', (req, res) => {
     });
 });
 
-// Obtenir només els pacients assignats a un metge concret
 app.get('/api/doctors/:doctorId/patients', (req, res) => {
     const query = `
         SELECT p.* FROM patients p
@@ -436,7 +341,6 @@ app.get('/api/doctors/:doctorId/patients', (req, res) => {
     });
 });
 
-// Assignar un pacient existent a un metge
 app.post('/api/doctor-patients', (req, res) => {
     const { doctorId, patientId } = req.body;
     db.run(`INSERT OR IGNORE INTO doctor_patients (doctorId, patientId) VALUES (?, ?)`, [doctorId, patientId], function(err) {
@@ -445,7 +349,6 @@ app.post('/api/doctor-patients', (req, res) => {
     });
 });
 
-// Desassignar un pacient d'un metge
 app.delete('/api/doctor-patients', (req, res) => {
     const { doctorId, patientId } = req.body;
     db.run(`DELETE FROM doctor_patients WHERE doctorId = ? AND patientId = ?`, [doctorId, patientId], function(err) {
@@ -454,7 +357,6 @@ app.delete('/api/doctor-patients', (req, res) => {
     });
 });
 
-// Obtenir els metges assignats a un pacient (per a l'Admin)
 app.get('/api/patients/:patientId/doctors', (req, res) => {
     const query = `
         SELECT d.id, d.name, d.specialty FROM doctors d
@@ -468,6 +370,66 @@ app.get('/api/patients/:patientId/doctors', (req, res) => {
 });
 
 // ============================================================
+// MODIFICACIÓ: APPOINTMENTS FILTRATS PER METGE
+// ============================================================
+app.get('/api/appointments/:doctorId', (req, res) => {
+    db.all("SELECT * FROM appointments WHERE doctorId = ? ORDER BY date ASC", [req.params.doctorId], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/appointments', (req, res) => {
+    const { id, patientId, patientName, date, reason, doctorId } = req.body;
+    db.run(`INSERT INTO appointments (id, patientId, patientName, date, reason, doctorId) VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, patientId, patientName, date, reason, doctorId], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ success: true });
+    });
+});
+
+app.delete('/api/appointments/:id', (req, res) => {
+    db.run(`DELETE FROM appointments WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// ============================================================
+// TIMELINE (HISTORIAL CLÍNIC MULTI-METGE)
+// ============================================================
+app.get('/api/timeline/:patientId', (req, res) => {
+    db.all("SELECT * FROM timeline WHERE patientId = ? ORDER BY id DESC", [req.params.patientId], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/timeline', (req, res) => {
+    const { id, patientId, date, type, text, doctorName } = req.body;
+    db.run(`INSERT INTO timeline (id, patientId, date, type, text, doctorName) VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, patientId, date, type, text, doctorName || 'Desconegut'], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ success: true });
+    });
+});
+
+app.delete('/api/reset', (req, res) => {
+    db.serialize(() => {
+        db.run(`DELETE FROM doctors`);
+        db.run(`DELETE FROM patients`);
+        db.run(`DELETE FROM specialties`);
+        db.run(`DELETE FROM admins`);
+        db.run(`DELETE FROM appointments`);
+        db.run(`DELETE FROM timeline`);
+        db.run(`DELETE FROM doctor_patients`);
+        db.run(`UPDATE config SET clinicName='Hospital Central de Proves', clinicPhone='', clinicAddr='', clinicEmail='' WHERE id='GLOBAL'`, function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor corrent a: http://localhost:${PORT}`);
 });

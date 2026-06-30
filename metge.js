@@ -10,7 +10,6 @@ document.addEventListener("DOMContentLoaded", function() {
     if (paginaActual.includes("metge_pacients.html")) {
         renderPatientsList();
         
-        // Escoltador del cercador dinàmic
         const txtSearch = document.getElementById('search-patient');
         if(txtSearch) txtSearch.addEventListener('input', renderPatientsList);
 
@@ -45,7 +44,6 @@ function toggleFormulariPacient() {
     }
 }
 
-// LLEGIR PACIENTS FILTRATS SEGONS MODE 'MINE' / 'ALL'
 async function renderPatientsList() {
     const llistaUl = document.getElementById('patients-list');
     if (!llistaUl) return;
@@ -54,18 +52,15 @@ async function renderPatientsList() {
     if (!user || !user.id) return;
 
     try {
-        // 1. Obtenir llistat personalitzat d'aquest doctor
         const resMine = await fetch(`/api/doctors/${user.id}/patients`);
         elsMeusPacients = resMine.ok ? await resMine.json() : [];
 
-        // 2. Obtenir llistat global del centre
         const resAll = await fetch('/api/patients');
         totsElsPacientsGlobals = resAll.ok ? await resAll.json() : [];
 
         llistaUl.innerHTML = '';
         const textCerca = document.getElementById('search-patient')?.value.toLowerCase().trim() || "";
         
-        // Si estem en mode 'all', filtrem perquè NO surtin els pacients que JA són meus (així desapareixen en assignar)
         let llistaAFiltrar = [];
         if (filtreActual === 'mine') {
             llistaAFiltrar = elsMeusPacients;
@@ -73,7 +68,6 @@ async function renderPatientsList() {
             llistaAFiltrar = totsElsPacientsGlobals.filter(p => !elsMeusPacients.some(m => m.id === p.id));
         }
 
-        // Aplicar filtre de cerca si s'ha escrit alguna cosa
         if (textCerca !== "") {
             llistaAFiltrar = llistaAFiltrar.filter(p => 
                 p.name.toLowerCase().includes(textCerca) || p.id.toLowerCase().includes(textCerca)
@@ -94,14 +88,12 @@ async function renderPatientsList() {
             
             let htmlContent = `<div><strong>${p.name}</strong><br><small style="color:var(--text-muted); font-size:11px;">${p.id}</small></div>`;
             
-            // Botó ràpid d'assignació en la llista global (en aquest punt cap d'ells és meu per l'exclusió de dalt)
             if (filtreActual === 'all') {
                 htmlContent += `<button class="btn-success" onclick="assignarPacientExistent(event, '${p.id}')" style="padding:2px 6px; font-size:10px; white-space:nowrap;">+ Assignar</button>`;
             }
 
             li.innerHTML = htmlContent;
             
-            // Estil seleccionat
             if (idPacientSeleccionat === p.id) {
                 li.style.background = "#edf2f7";
                 li.style.fontWeight = "bold";
@@ -121,7 +113,6 @@ async function renderPatientsList() {
     }
 }
 
-// CANVI DE PESTANYA / MODE
 function setFiltrePacients(mode) {
     filtreActual = mode;
     const btnMine = document.getElementById('btn-filter-mine');
@@ -142,7 +133,6 @@ function setFiltrePacients(mode) {
     renderPatientsList();
 }
 
-// VINCULAR UN PACIENT EXISTENT DE L'HOSPITAL A LA MEVA LLISTA
 async function assignarPacientExistent(event, patientId) {
     if(event) event.stopPropagation();
     const user = getCurrentUser();
@@ -153,21 +143,18 @@ async function assignarPacientExistent(event, patientId) {
             body: JSON.stringify({ doctorId: user.id, patientId: patientId })
         });
         if (res.ok) {
-            alert("Pacient assignat correctament a la teva llista de seguiment.");
+            alert("Pacient assignat correctament.");
             await renderPatientsList();
-            // Si el pacient actualment estava obert al panell d'edició, refresquem la botonera de la fitxa
             if (idPacientSeleccionat === patientId) {
                 await seleccionarPacient(patientId);
             }
         }
-    } catch (e) { 
-        console.error("Error associant pacient:", e); 
-    }
+    } catch (e) { console.error(e); }
 }
 
 async function desassignarPacientActual() {
     if (!idPacientSeleccionat) return;
-    if (!confirm("Segur que vols desassignar-te aquest pacient? Les dades clíniques i el seu historial no s'esborraran de l'hospital.")) return;
+    if (!confirm("Segur que vols desassignar-te aquest pacient?")) return;
     
     const user = getCurrentUser();
     try {
@@ -177,19 +164,16 @@ async function desassignarPacientActual() {
             body: JSON.stringify({ doctorId: user.id, patientId: idPacientSeleccionat })
         });
         if (res.ok) {
-            // Decisió de disseny net: mantenim la fitxa oberta però canviem el botó a "Assignar"
-            alert("Pacient desassignat de la teva llista pròpia.");
+            alert("Pacient desassignat de la teva llista.");
             await renderPatientsList();
             await seleccionarPacient(idPacientSeleccionat);
         }
     } catch (e) { console.error(e); }
 }
 
-// SELECCIONAR UN PACIENT I CARREGAR EL SEU HISTORIAL (TIMELINE)
 async function seleccionarPacient(idPacient) {
     idPacientSeleccionat = idPacient;
     
-    // Refresca l'estat visual de la llista esquerra sense perdre el focus
     const elements = document.getElementById('patients-list').children;
     for(let li of elements) { li.style.background = ""; li.style.fontWeight = "normal"; li.style.borderLeft = ""; }
 
@@ -200,17 +184,14 @@ async function seleccionarPacient(idPacient) {
 
         if (!pacient) return;
 
-        // Mostrar el panell de la dreta i amagar el missatge buit
         document.getElementById('no-patient-selected').classList.add('hidden');
         document.getElementById('history-container').classList.remove('hidden');
 
-        // Omplir dades de la capçalera
         document.getElementById('pat-name').textContent = pacient.name;
         document.getElementById('pat-id').textContent = pacient.id;
         document.getElementById('pat-age').textContent = pacient.birthDate ? calcularEdat(pacient.birthDate) + " anys" : "No especificada";
         document.getElementById('pat-gender').textContent = pacient.gender;
 
-        // Omplir camps de modificació de dades
         document.getElementById('edit-pat-name').value = pacient.name;
         document.getElementById('edit-pat-id-display').value = pacient.id;
         document.getElementById('edit-pat-birth').value = pacient.birthDate || '';
@@ -218,27 +199,26 @@ async function seleccionarPacient(idPacient) {
         document.getElementById('edit-pat-phone').value = pacient.phone || '';
         document.getElementById('edit-pat-email').value = pacient.email || '';
 
-        // --- DINAMISME DEL BOTÓ DE LA FITXA (Mireu si és meu o no) ---
         const botoContenidor = document.getElementById('action-patient-button-container');
         if (botoContenidor) {
             const esMeu = elsMeusPacients.some(m => m.id === idPacient);
             if (esMeu) {
-                botoContenidor.innerHTML = `<button type="button" id="btn-unassign-patient" class="btn-danger" onclick="desassignarPacientActual()" style="padding: 6px 12px; font-size: 13px; background:#e53e3e;">🚫 Desassignar Pacient</button>`;
+                botoContenidor.innerHTML = `<button type="button" class="btn-danger" onclick="desassignarPacientActual()" style="padding: 6px 12px; font-size: 13px; background:#e53e3e;">🚫 Desassignar Pacient</button>`;
             } else {
-                botoContenidor.innerHTML = `<button type="button" id="btn-assign-patient" class="btn-success" onclick="assignarPacientExistent(null, '${pacient.id}')" style="padding: 6px 12px; font-size: 13px; background:var(--success-color);">➕ Assignar a la meva llista</button>`;
+                botoContenidor.innerHTML = `<button type="button" class="btn-success" onclick="assignarPacientExistent(null, '${pacient.id}')" style="padding: 6px 12px; font-size: 13px; background:var(--success-color);">➕ Assignar a la meva llista</button>`;
             }
         }
 
-        // Obtenir el timeline d'aquest pacient
         const resTimeline = await fetch(`/api/timeline/${idPacient}`);
         const timeline = await resTimeline.json();
         renderTimeline(timeline);
 
     } catch (err) {
-        console.error("Error seleccionant pacient:", err);
+        console.error(err);
     }
 }
 
+// MODIFICACIÓ: Pinta el metge responsable al timeline
 function renderTimeline(timelineArray) {
     const box = document.getElementById('history-timeline');
     box.innerHTML = '';
@@ -259,15 +239,15 @@ function renderTimeline(timelineArray) {
         entry.innerHTML = `
             <div class="timeline-header">
                 <strong>${icona} ${item.type.toUpperCase()}</strong>
+                <span style="color: var(--primary-color); font-size:12px; font-weight:600;">Signat: ${item.doctorName || 'Desconegut'}</span>
                 <span class="timeline-date">${item.date}</span>
             </div>
-            <div class="timeline-body">${item.text.replace(/\n/g, '<br>')}</div>
+            <div class="timeline-body" style="margin-top:5px;">${item.text.replace(/\n/g, '<br>')}</div>
         `;
         box.appendChild(entry);
     });
 }
 
-// CREAR PACIENT I AUTO-ASSIGNAR-LO AL DR LOGUEJAT
 async function executarCreacioPacient(e) {
     e.preventDefault();
     const user = getCurrentUser();
@@ -282,22 +262,17 @@ async function executarCreacioPacient(e) {
             body: JSON.stringify({ name, birthDate, gender, doctorId: user.id })
         });
 
-        const data = await response.json();
-        if (!response.ok) {
-            alert(data.error);
-            return;
-        }
+        if (!response.ok) throw new Error();
 
         document.getElementById('create-patient-form').reset();
         toggleFormulariPacient();
         await renderPatientsList();
-        alert("Pacient registrat al sistema i lligat a la teva llista pròpia.");
+        alert("Pacient registrat i lligat a la teva llista.");
     } catch (err) {
-        alert("Error de connexió amb el servidor.");
+        alert("Error en el registre.");
     }
 }
 
-// EDITAR LES DADES DES DEL PANELL DEL METGE
 async function executarEdicioFitxa(e) {
     e.preventDefault();
     if (!idPacientSeleccionat) return;
@@ -316,19 +291,18 @@ async function executarEdicioFitxa(e) {
         });
 
         if (response.ok) {
-            alert("Fitxa de dades actualitzada a SQLite.");
+            alert("Fitxa actualitzada.");
             seleccionarPacient(idPacientSeleccionat);
         }
-    } catch (err) {
-        console.error(err);
-    }
+    } catch (err) { console.error(err); }
 }
 
-// AFEGIR CONSULTA
+// MODIFICACIÓ: Adjunta l'autor de la consulta mèdica
 async function executarAfegirConsulta(e) {
     e.preventDefault();
     if (!idPacientSeleccionat) return;
 
+    const user = getCurrentUser();
     const textInput = document.getElementById('history-text').value.trim();
     const ara = new Date();
     const dataString = `${String(ara.getDate()).padStart(2,'0')}/${String(ara.getMonth()+1).padStart(2,'0')}/${ara.getFullYear()} ${String(ara.getHours()).padStart(2,'0')}:${String(ara.getMinutes()).padStart(2,'0')}`;
@@ -342,7 +316,8 @@ async function executarAfegirConsulta(e) {
                 patientId: idPacientSeleccionat,
                 date: dataString,
                 type: 'consulta',
-                text: textInput
+                text: textInput,
+                doctorName: `Dr. ${user.name}`
             })
         });
 
@@ -350,11 +325,8 @@ async function executarAfegirConsulta(e) {
             document.getElementById('history-text').value = '';
             seleccionarPacient(idPacientSeleccionat);
         }
-    } catch (err) {
-        console.error(err);
-    }
+    } catch (err) { console.error(err); }
 }
-
 
 // ==========================================
 // SECCIÓ B: LÒGICA DE LA PESTANYA CITES
@@ -367,7 +339,6 @@ async function actualitzarDesplegablePacientsCites() {
 
     const user = getCurrentUser();
     try {
-        // Mostrem al llistat de cites només els pacients que aquest doctor té assignats!
         const response = await fetch(`/api/doctors/${user.id}/patients`);
         const patients = await response.json();
 
@@ -378,22 +349,22 @@ async function actualitzarDesplegablePacientsCites() {
             opt.textContent = `${p.name} (${p.id})`;
             select.appendChild(opt);
         });
-    } catch (err) {
-        console.error(err);
-    }
+    } catch (err) { console.error(err); }
 }
 
+// MODIFICACIÓ: Carrega només l'agenda del metge loguejat
 async function renderAppointmentsTable() {
     const tbody = document.getElementById('appointments-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    const user = getCurrentUser();
     try {
-        const response = await fetch('/api/appointments');
+        const response = await fetch(`/api/appointments/${user.id}`);
         const appointments = await response.json();
 
         if (appointments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#a0aec0;">No hi ha cap cita agendada.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#a0aec0;">No tens cap cita agendada.</td></tr>';
             return;
         }
 
@@ -411,13 +382,13 @@ async function renderAppointmentsTable() {
             `;
             tbody.appendChild(tr);
         });
-    } catch (err) {
-        console.error(err);
-    }
+    } catch (err) { console.error(err); }
 }
 
+// MODIFICACIÓ: Programa la cita afegint doctorId i doctorName
 async function executarProgramarCita(e) {
     e.preventDefault();
+    const user = getCurrentUser();
     const select = document.getElementById('appointment-patient-select');
     const patientId = select.value;
     const patientName = select.options[select.selectedIndex].dataset.name;
@@ -431,7 +402,7 @@ async function executarProgramarCita(e) {
         await fetch('/api/appointments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: idCita, patientId, patientName, date: rawDate, reason })
+            body: JSON.stringify({ id: idCita, patientId, patientName, date: rawDate, reason, doctorId: user.id })
         });
 
         const ara = new Date();
@@ -445,22 +416,23 @@ async function executarProgramarCita(e) {
                 patientId: patientId,
                 date: avuiString,
                 type: 'cita',
-                text: `Cita reservada per al dia i hora: ${dataFormatada}.\nMotiu: ${reason}`
+                text: `Cita reservada per al dia i hora: ${dataFormatada}.\nMotiu: ${reason}`,
+                doctorName: `Dr. ${user.name}`
             })
         });
 
         document.getElementById('schedule-appointment-form').reset();
         await renderAppointmentsTable();
-        alert("Cita agendada i registrada a l'historial amb èxit!");
-    } catch (err) {
-        console.error(err);
-    }
+        alert("Cita agendada amb èxit!");
+    } catch (err) { console.error(err); }
 }
 
+// MODIFICACIÓ: Anul·la afegint la signatura del metge al timeline
 window.esborrarCita = async function(idCita, idPacient) {
     if (confirm("Segur que vols anul·lar aquesta cita de l'agenda?")) {
+        const user = getCurrentUser();
         try {
-            const resApp = await fetch('/api/appointments');
+            const resApp = await fetch(`/api/appointments/${user.id}`);
             const appointments = await resApp.json();
             const dadaCita = appointments.find(app => app.id === idCita);
 
@@ -480,27 +452,23 @@ window.esborrarCita = async function(idCita, idPacient) {
                     patientId: idPacient,
                     date: dataAnulacioString,
                     type: "cita-anulada",
-                    text: `Cita que estava programada per al ${dataCitaOriginal} ha estat ANUL·LADA.\nMotiu original: ${motiuOriginal}`
+                    text: `Cita programada per al ${dataCitaOriginal} ha estat ANUL·LADA.\nMotiu original: ${motiuOriginal}`,
+                    doctorName: `Dr. ${user.name}`
                 })
             });
 
             await renderAppointmentsTable();
             alert("Cita anul·lada correctament.");
-        } catch (err) {
-            console.error("Error al cancel·lar la cita:", err);
-        }
+        } catch (err) { console.error(err); }
     }
 };
 
-// --- UTILITATS ---
 function calcularEdat(dataNaixement) {
     const avui = new Date();
     const naixement = new Date(dataNaixement);
     let edat = avui.getFullYear() - naixement.getFullYear();
     const mes = avui.getMonth() - naixement.getMonth();
-    if (mes < 0 || (mes === 0 && avui.getDate() < naixement.getDate())) {
-        edat--;
-    }
+    if (mes < 0 || (mes === 0 && avui.getDate() < naixement.getDate())) { edat--; }
     return edat;
 }
 window.setFiltrePacients = setFiltrePacients;
