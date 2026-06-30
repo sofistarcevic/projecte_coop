@@ -47,6 +47,16 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // =========================================================================
+    // RESTRICCIÓ: només l'Administrador Mestre veu Seguretat/Administradors i Manteniment Crític
+    // =========================================================================
+    const usuariActual = getCurrentUser();
+    const esMestre = !!(usuariActual && usuariActual.role === 'admin' && usuariActual.isMaster);
+    const blocNomesMestre = document.getElementById('bloc-nomes-mestre');
+    if (blocNomesMestre && !esMestre) {
+        blocNomesMestre.classList.add('hidden');
+    }
+
+    // =========================================================================
     // ESTAT GLOBAL: llistes en memòria per evitar fetch repetits
     // =========================================================================
     let llistaMetgesGlobals = [];
@@ -853,6 +863,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // --- Seguretat i Administradors ---
     let llistaAdmins = [];
+    let adminEnEdicioId = null;
 
     async function carregarAdmins() {
         try {
@@ -875,16 +886,68 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
 
         llistaAdmins.forEach(adm => {
-            html += `
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;">
-                    <span>🛡️ <strong>${adm.username}</strong> <span style="color:#a0aec0;font-size:12px;">${adm.name ? '— ' + adm.name : ''}</span></span>
-                    <button onclick="eliminarAdmin(${adm.id})" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:18px;line-height:1;" title="Eliminar">×</button>
-                </div>
-            `;
+            if (adminEnEdicioId === adm.id) {
+                html += `
+                    <div style="background:#fffaf0;border:1px solid #fbd38d;border-radius:6px;padding:10px 12px;margin-bottom:8px;">
+                        <div style="display:flex;gap:8px;margin-bottom:8px;">
+                            <input type="text" id="edit-adm-name-${adm.id}" value="${adm.name || ''}" placeholder="Nom complet" style="flex:1;padding:5px 8px;font-size:13px;">
+                            <input type="text" id="edit-adm-username-${adm.id}" value="${adm.username}" placeholder="Usuari" style="flex:1;padding:5px 8px;font-size:13px;">
+                            <input type="text" id="edit-adm-password-${adm.id}" value="${adm.password}" placeholder="Contrasenya" style="flex:1;padding:5px 8px;font-size:13px;">
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-success" style="padding:5px 12px;font-size:12px;" onclick="guardarEdicioAdmin(${adm.id})">💾 Guardar</button>
+                            <button class="btn-danger" style="padding:5px 12px;font-size:12px;" onclick="cancelarEdicioAdmin()">Cancel·lar</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;">
+                        <span>🛡️ <strong>${adm.username}</strong> <span style="color:#a0aec0;font-size:12px;">${adm.name ? '— ' + adm.name : ''}</span></span>
+                        <span>
+                            <button onclick="editarAdmin(${adm.id})" style="background:none;border:none;cursor:pointer;color:var(--primary-color);font-size:15px;margin-right:6px;" title="Editar">✏️</button>
+                            <button onclick="eliminarAdmin(${adm.id})" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:18px;line-height:1;" title="Eliminar">×</button>
+                        </span>
+                    </div>
+                `;
+            }
         });
 
         contenidor.innerHTML = html;
     }
+
+    window.editarAdmin = function(id) {
+        adminEnEdicioId = id;
+        pintarAdmins();
+    };
+
+    window.cancelarEdicioAdmin = function() {
+        adminEnEdicioId = null;
+        pintarAdmins();
+    };
+
+    window.guardarEdicioAdmin = async function(id) {
+        const name     = document.getElementById(`edit-adm-name-${id}`).value.trim();
+        const username = document.getElementById(`edit-adm-username-${id}`).value.trim();
+        const password = document.getElementById(`edit-adm-password-${id}`).value;
+
+        if (!username || !password) { alert("Usuari i contrasenya són obligatoris."); return; }
+
+        try {
+            const res = await fetch(`/api/admins/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, username, password })
+            });
+            const resultat = await res.json();
+            if (res.ok) {
+                adminEnEdicioId = null;
+                carregarAdmins();
+            } else {
+                alert("Error: " + (resultat.error || "No s'ha pogut actualitzar l'administrador."));
+            }
+        } catch (err) { alert("Error de xarxa."); }
+    };
 
     const formNouAdmin = document.getElementById('form-nou-admin');
     if (formNouAdmin) {

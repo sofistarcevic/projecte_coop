@@ -172,7 +172,7 @@ app.delete('/api/specialties/:id', (req, res) => {
 // ADMINS
 // ============================================================
 app.get('/api/admins', (req, res) => {
-    db.all("SELECT id, name, username FROM admins", [], (err, rows) => {
+    db.all("SELECT id, name, username, password FROM admins", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
@@ -188,6 +188,20 @@ app.post('/api/admins', (req, res) => {
             return res.status(500).json({ error: err.message });
         }
         res.status(201).json({ success: true, id: this.lastID });
+    });
+});
+
+app.put('/api/admins/:id', (req, res) => {
+    const { name, username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Usuari i contrasenya són obligatoris." });
+    db.run(`UPDATE admins SET name=?, username=?, password=? WHERE id=?`,
+        [name || '', username, password, req.params.id], function(err) {
+        if (err) {
+            if (err.message.includes("UNIQUE")) return res.status(400).json({ error: "Aquest nom d'usuari ja existeix." });
+            return res.status(500).json({ error: err.message });
+        }
+        if (this.changes === 0) return res.status(404).json({ error: "Administrador no trobat." });
+        res.json({ success: true });
     });
 });
 

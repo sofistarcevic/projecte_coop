@@ -28,13 +28,37 @@ document.addEventListener("DOMContentLoaded", async function() {
 
         //Administrador Mestre definit en codi dur
         if (usernameInput === 'admin' && passwordInput === 'admin') {
-            const adminUser = { username: 'admin', role: 'admin', name: 'Administrador Mestre' };
+            const adminUser = { username: 'admin', role: 'admin', name: 'Administrador Mestre', isMaster: true };
             localStorage.setItem('currentUser', JSON.stringify(adminUser));
             window.location.href = 'admin.html';
             return;
         }
 
-        //Si no és l'administrador, connectem amb la base de dades SQLite per comprovar metges/altres adimins
+        //Comprovem si és un administrador creat des del panell (taula admins)
+        try {
+            const resAdmin = await fetch('/api/admins/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usernameInput, password: passwordInput })
+            });
+            if (resAdmin.ok) {
+                const dadesAdmin = await resAdmin.json();
+                const adminUser = {
+                    id: dadesAdmin.id,
+                    username: usernameInput,
+                    role: 'admin',
+                    name: dadesAdmin.name || usernameInput,
+                    isMaster: false
+                };
+                localStorage.setItem('currentUser', JSON.stringify(adminUser));
+                window.location.href = 'admin.html';
+                return;
+            }
+        } catch (err) {
+            console.warn("No s'ha pogut comprovar credencials d'administrador:", err);
+        }
+
+        //Si no és cap administrador, connectem amb la base de dades SQLite per comprovar metges
         try {
             const response = await fetch('/api/doctors');
             if (!response.ok) throw new Error("Error en llegir metges");
